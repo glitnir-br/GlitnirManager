@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Plus, Download } from 'lucide-react';
 import PlayerTable from '@/components/players/PlayerTable';

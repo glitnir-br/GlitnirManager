@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 
 const initialForm = {
   nick: '', steamid: '', status: 'ativo', guilda: '', observacao: '', cor: '',

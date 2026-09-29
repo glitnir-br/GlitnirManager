@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 import { useAuth } from '@/lib/AuthContext';
 import ReportFilters from '@/components/relatorios/ReportFilters';
 import MonthlyEvolutionChart from '@/components/relatorios/MonthlyEvolutionChart';

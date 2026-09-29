@@ -1,4 +1,4 @@
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 
 export const logSecurityEvent = async (action, user_email, details = {}, performed_by = null) => {
   try {

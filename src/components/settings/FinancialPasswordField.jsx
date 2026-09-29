@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useFinancialPassword } from '@/lib/FinancialPasswordContext';
 

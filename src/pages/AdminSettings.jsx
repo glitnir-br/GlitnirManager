@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useAdminAuth } from '@/lib/AdminAuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/dbClient';
 import PasswordProtectedArea from '@/components/PasswordProtectedArea';
 import FinancialPasswordField from '@/components/settings/FinancialPasswordField';
 import GcTabelaEditor from '@/components/settings/GcTabelaEditor';
