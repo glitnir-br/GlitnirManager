@@ -203,6 +203,25 @@ const createEntityManager = (entityName) => {
       });
       setLocalStorage(entityName, items);
       return true;
+    },
+
+    subscribe: (onChange) => {
+      if (typeof onChange !== 'function' || !supabase) {
+        return () => {};
+      }
+
+      const channel = supabase
+        .channel(`${tableName}-changes`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName },
+          onChange
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   };
 };
