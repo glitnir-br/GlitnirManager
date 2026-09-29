@@ -1,0 +1,46 @@
+{
+  "name": "SecurityLog",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "user_approved",
+        "user_rejected",
+        "user_blocked",
+        "role_changed",
+        "access_removed",
+        "financial_access",
+        "unauthorized_attempt",
+        "admin_panel_access"
+      ],
+      "description": "Tipo de a\u00e7\u00e3o realizada"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio afetado"
+    },
+    "performed_by": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio que realizou a a\u00e7\u00e3o"
+    },
+    "details": {
+      "type": "string",
+      "description": "Detalhes adicionais da a\u00e7\u00e3o"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "IP da a\u00e7\u00e3o"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data e hora da a\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "action",
+    "user_email",
+    "performed_by"
+  ]
+}

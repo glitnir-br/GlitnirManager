@@ -1,0 +1,22 @@
+{
+  "name": "GcTabela",
+  "type": "object",
+  "properties": {
+    "reais": {
+      "type": "number",
+      "description": "Valor em reais"
+    },
+    "gc": {
+      "type": "number",
+      "description": "Quantidade de GC"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem de exibi\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "reais",
+    "gc"
+  ]
+}

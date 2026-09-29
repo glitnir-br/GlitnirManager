@@ -1,0 +1,32 @@
+{
+  "name": "Compra",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da compra"
+    },
+    "nick": {
+      "type": "string",
+      "description": "Nick do jogador"
+    },
+    "produto": {
+      "type": "string",
+      "description": "Produto comprado"
+    },
+    "valor": {
+      "type": "number",
+      "description": "Valor da compra"
+    },
+    "guilda": {
+      "type": "string",
+      "description": "Guilda do jogador"
+    }
+  },
+  "required": [
+    "nick",
+    "produto",
+    "valor"
+  ]
+}
