@@ -1,8 +1,3 @@
-import { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { ShieldOff, Lock, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 const FINANCE_PASSWORD = 'glitnir2025';
 

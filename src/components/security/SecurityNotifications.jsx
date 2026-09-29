@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/dbClient';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Shield, LogIn } from 'lucide-react';
+import { AlertTriangle, Shield } from 'lucide-react';
 
 export default function SecurityNotifications() {
   const { user } = useAuth();

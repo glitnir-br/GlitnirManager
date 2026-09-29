@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/dbClient';
 import { useAuth } from '@/lib/AuthContext';
@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 const ACTION_LABELS = {
   user_approved: 'Usuário Aprovado',

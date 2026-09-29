@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { useAdminAuth } from '@/lib/AdminAuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/dbClient';
 import PasswordProtectedArea from '@/components/PasswordProtectedArea';
@@ -8,13 +7,11 @@ import FinancialPasswordField from '@/components/settings/FinancialPasswordField
 import GcTabelaEditor from '@/components/settings/GcTabelaEditor';
 import DataResetPanel from '@/components/settings/DataResetPanel';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, Shield, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 const ROLE_MAP = {
   nenhum:       { label: 'Nenhum',     profileRole: 'visitante',    profileStatus: 'ativo' },

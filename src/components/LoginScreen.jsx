@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/AuthContext';
-import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn, Chrome } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 
 export default function LoginScreen() {
   const { loginWithPassword, navigateToLogin, isLoadingAuth } = useAuth();

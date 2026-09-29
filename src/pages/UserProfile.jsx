@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, Mail, Shield, Calendar, LogOut } from 'lucide-react';

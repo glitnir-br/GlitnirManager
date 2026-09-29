@@ -1,7 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Users, DollarSign, ShoppingCart } from 'lucide-react';
+import { Users, DollarSign } from 'lucide-react';
 
 export default function RecentActivity({ players, financas, compras }) {
   const recentPlayers = [...players].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 5);

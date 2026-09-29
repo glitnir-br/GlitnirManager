@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { StatusBadge, RoleBadge } from '@/components/UserStatusBadge';
-import { CheckCircle2, XCircle, Lock, Trash2, Settings, Eye } from 'lucide-react';
+import { RoleBadge } from '@/components/UserStatusBadge';
+import { CheckCircle2, XCircle, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 

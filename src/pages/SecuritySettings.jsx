@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import TwoFactorAuth from '@/components/TwoFactorAuth';
 import AuditLog from '@/components/security/AuditLog';

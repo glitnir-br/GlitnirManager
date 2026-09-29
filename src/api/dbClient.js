@@ -80,13 +80,19 @@ const createEntityManager = (entityName) => {
       return items;
     },
 
-    filter: async (criteria = {}) => {
+    filter: async (criteria = {}, sortKey, limit) => {
       if (supabase) {
         try {
           let query = supabase.from(tableName).select('*');
           Object.entries(criteria).forEach(([k, v]) => {
             query = query.eq(k, v);
           });
+          if (sortKey) {
+            const isDesc = sortKey.startsWith('-');
+            const field = isDesc ? sortKey.substring(1) : sortKey;
+            query = query.order(field, { ascending: !isDesc });
+          }
+          if (limit) query = query.limit(limit);
           const { data, error } = await query;
           if (!error && data) return data;
         } catch (e) {
@@ -94,8 +100,20 @@ const createEntityManager = (entityName) => {
         }
       }
 
-      const items = getLocalStorage(entityName);
-      return items.filter(item => Object.entries(criteria).every(([k, v]) => item[k] === v));
+      let items = getLocalStorage(entityName)
+        .filter(item => Object.entries(criteria).every(([k, v]) => item[k] === v));
+      if (sortKey) {
+        const isDesc = sortKey.startsWith('-');
+        const field = isDesc ? sortKey.substring(1) : sortKey;
+        items = [...items].sort((a, b) => {
+          const left = a[field] ?? '';
+          const right = b[field] ?? '';
+          return isDesc
+            ? String(right).localeCompare(String(left))
+            : String(left).localeCompare(String(right));
+        });
+      }
+      return limit ? items.slice(0, limit) : items;
     },
 
     create: async (data) => {
@@ -207,5 +225,18 @@ export const base44 = {
       localStorage.removeItem('glitnir_local_user');
     },
     redirectToLogin: () => {}
+  },
+  users: {
+    // O convite de usuários exige uma função administrativa no servidor. No
+    // modo local, o perfil já é criado pela tela de administração.
+    inviteUser: async (email, role = 'user') => ({ email, role, delivered: false })
+  },
+  integrations: {
+    Core: {
+      // Não há provedor de e-mail configurado no cliente. Retornar um resultado
+      // explícito evita que ações administrativas quebrem enquanto um backend
+      // de e-mail não estiver configurado.
+      SendEmail: async ({ to, subject }) => ({ to, subject, delivered: false })
+    }
   }
 };
