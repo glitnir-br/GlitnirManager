@@ -186,6 +186,9 @@ const entitiesProxy = new Proxy({}, {
 
 export const base44 = {
   entities: entitiesProxy,
+  analytics: {
+    track: () => {}
+  },
   auth: {
     me: async () => {
       if (supabase) {
