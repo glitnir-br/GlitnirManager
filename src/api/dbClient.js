@@ -161,6 +161,11 @@ const createEntityManager = (entityName) => {
     },
 
     delete: async (id) => {
+      if (typeof window !== 'undefined') {
+        const confirmed = window.confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.');
+        if (!confirmed) return false;
+      }
+
       if (supabase) {
         const { error } = await supabase.from(tableName).delete().eq('id', id);
         if (error) throw new Error(`Falha ao excluir de ${tableName}: ${error.message}`);
