@@ -88,6 +88,7 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
+    <div className="notranslate" translate="no">
     <AuthProvider>
       <SessionProvider>
         <AdminAuthProvider>
@@ -102,6 +103,7 @@ function App() {
         </AdminAuthProvider>
       </SessionProvider>
     </AuthProvider>
+    </div>
   )
 }
 
