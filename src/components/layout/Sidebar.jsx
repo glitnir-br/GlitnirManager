@@ -100,7 +100,7 @@ export default function Sidebar({ open, setOpen }) {
             <UserCircle className="w-5 h-5" />
             Meu Perfil
           </Link>
-          <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest">Glitnir CONTROLE v1.0</p>
+          <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest">Glitnir Manager v1.0</p>
         </div>
       </aside>
     </>);

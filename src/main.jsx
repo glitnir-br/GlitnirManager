@@ -4,6 +4,8 @@ import App from '@/App.jsx'
 import AppErrorBoundary from '@/components/AppErrorBoundary.jsx'
 import '@/index.css'
 
+document.title = 'Glitnir Manager'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <AppErrorBoundary>
     <App />
