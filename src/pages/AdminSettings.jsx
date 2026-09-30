@@ -111,7 +111,7 @@ export default function AdminSettings() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid h-auto w-full max-w-2xl grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
+          <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
             <TabsTrigger value="password" className="gap-2">Senhas de Acesso</TabsTrigger>
             <TabsTrigger value="access" className="gap-2">Solicitações de Acesso</TabsTrigger>
             <TabsTrigger value="gc" className="gap-2">Tabela GC</TabsTrigger>
@@ -119,7 +119,7 @@ export default function AdminSettings() {
           </TabsList>
 
           <TabsContent value="password">
-            <div className="mx-auto max-w-2xl space-y-6 rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="w-full space-y-6 rounded-xl border border-border bg-card p-4 sm:p-6">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-2">Senhas de Acesso aos Módulos</h2>
                 <p className="text-muted-foreground text-sm mb-6">
@@ -142,7 +142,7 @@ export default function AdminSettings() {
           </TabsContent>
 
           <TabsContent value="access">
-            <div className="mx-auto max-w-4xl rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="w-full rounded-xl border border-border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-foreground mb-2">Solicitações de Acesso</h2>
@@ -243,13 +243,13 @@ export default function AdminSettings() {
           </TabsContent>
 
           <TabsContent value="gc">
-            <div className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="w-full rounded-xl border border-border bg-card p-4 sm:p-6">
               <GcTabelaEditor />
             </div>
           </TabsContent>
 
           <TabsContent value="reset">
-            <div className="mx-auto max-w-2xl rounded-xl border border-destructive/30 bg-card p-4 sm:p-6">
+            <div className="w-full rounded-xl border border-destructive/30 bg-card p-4 sm:p-6">
               <DataResetPanel />
             </div>
           </TabsContent>
