@@ -29,7 +29,7 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="w-full max-w-2xl space-y-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Meu Perfil</h1>
         <p className="text-muted-foreground text-sm mt-1">Informações da sua conta</p>
