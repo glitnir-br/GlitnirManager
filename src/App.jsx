@@ -26,6 +26,7 @@ import AdminAccess from '@/pages/AdminAccess';
 import AdminSettings from '@/pages/AdminSettings';
 import SecuritySettings from '@/pages/SecuritySettings';
 import UserProfile from '@/pages/UserProfile';
+import DeleteConfirmationProvider from '@/components/DeleteConfirmationProvider';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -89,6 +90,7 @@ function App() {
 
   return (
     <div className="notranslate" translate="no">
+    <DeleteConfirmationProvider>
     <AuthProvider>
       <SessionProvider>
         <AdminAuthProvider>
@@ -103,6 +105,7 @@ function App() {
         </AdminAuthProvider>
       </SessionProvider>
     </AuthProvider>
+    </DeleteConfirmationProvider>
     </div>
   )
 }

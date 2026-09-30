@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { requestDeleteConfirmation } from '@/lib/delete-confirmation';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
@@ -162,7 +163,7 @@ const createEntityManager = (entityName) => {
 
     delete: async (id) => {
       if (typeof window !== 'undefined') {
-        const confirmed = window.confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.');
+        const confirmed = await requestDeleteConfirmation();
         if (!confirmed) return false;
       }
 
