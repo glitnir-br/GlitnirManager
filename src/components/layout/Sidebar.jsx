@@ -43,8 +43,7 @@ export default function Sidebar({ open, setOpen }) {
                 className="w-12 h-12 object-contain"
               />
               <div>
-                <h1 className="font-bold text-foreground tracking-tight">Glitnir</h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">CONTROLE</p>
+                <h1 className="font-bold text-foreground tracking-tight">Glitnir Manager</h1>
               </div>
             </div>
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(false)}>
