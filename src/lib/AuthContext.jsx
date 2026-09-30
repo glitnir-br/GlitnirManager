@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/dbClient';
+import { base44, isSupabaseConfigured } from '@/api/dbClient';
 
 const AuthContext = createContext();
 
@@ -20,6 +20,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
+      if (isSupabaseConfigured()) {
+        const authenticatedUser = await base44.auth.me();
+        setUser(authenticatedUser);
+        setIsAuthenticated(Boolean(authenticatedUser));
+        setIsLoadingPublicSettings(false);
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+        return;
+      }
       
       const storedLocalUser = localStorage.getItem('glitnir_local_user');
       if (storedLocalUser) {
@@ -47,6 +56,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithPassword = async (usernameOrEmail, password) => {
+    if (isSupabaseConfigured()) {
+      try {
+        const email = usernameOrEmail.trim().toLowerCase();
+        if (!email.includes('@')) return { success: false, message: 'Use o e-mail cadastrado no Supabase.' };
+        const authUser = await base44.auth.signInWithPassword(email, password);
+        const profiles = await base44.entities.UserProfile.filter({ email: authUser.email });
+        setUser({ ...authUser, ...(profiles[0] || { role: 'visitante', status: 'pendente' }) });
+        setIsAuthenticated(true);
+        return { success: true };
+      } catch (error) {
+        return { success: false, message: error.message || 'Falha no login Supabase.' };
+      }
+    }
     // Definindo credenciais padrão locais
     const defaultUsers = [
       {

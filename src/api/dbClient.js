@@ -17,6 +17,7 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 
 export { supabase };
+export const isSupabaseConfigured = () => Boolean(supabase);
 
 // Mapeamento de nomes de tabelas para o Supabase (snake_case)
 const TABLE_MAP = {
@@ -225,13 +226,19 @@ export const base44 = {
   auth: {
     me: async () => {
       if (supabase) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) return user;
-        } catch (e) {}
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        const profiles = await createEntityManager('UserProfile').filter({ email: user.email });
+        return { ...user, ...(profiles[0] || { role: 'visitante', status: 'pendente' }) };
       }
       const stored = localStorage.getItem('glitnir_local_user');
       return stored ? JSON.parse(stored) : null;
+    },
+    signInWithPassword: async (email, password) => {
+      if (!supabase) throw new Error('Supabase não está configurado.');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data.user;
     },
     logout: async () => {
       if (supabase) {
