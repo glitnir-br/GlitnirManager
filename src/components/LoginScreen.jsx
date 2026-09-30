@@ -122,7 +122,7 @@ export default function LoginScreen() {
           </form>
 
           {/* Cards de Usuário Padrão */}
-          <div className="pt-2 border-t border-border">
+          <div className="hidden" aria-hidden="true">
             <p className="text-xs font-semibold text-muted-foreground mb-2 text-center">
               💡 Credenciais Padrão (Ambiente Local)
             </p>
