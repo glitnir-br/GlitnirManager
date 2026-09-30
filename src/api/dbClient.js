@@ -65,20 +65,18 @@ const createEntityManager = (entityName) => {
   const tableName = TABLE_MAP[entityName] || entityName.toLowerCase();
 
   return {
-    list: async (sortKey) => {
+    list: async (sortKey, limit) => {
       if (supabase) {
-        try {
-          let query = supabase.from(tableName).select('*');
-          if (sortKey) {
-            const isDesc = sortKey.startsWith('-');
-            const field = isDesc ? sortKey.substring(1) : sortKey;
-            query = query.order(field, { ascending: !isDesc });
-          }
-          const { data, error } = await query;
-          if (!error && data) return data;
-        } catch (e) {
-          console.warn(`Supabase list error for ${tableName}, fallback to local:`, e);
+        let query = supabase.from(tableName).select('*');
+        if (sortKey) {
+          const isDesc = sortKey.startsWith('-');
+          const field = isDesc ? sortKey.substring(1) : sortKey;
+          query = query.order(field, { ascending: !isDesc });
         }
+        if (limit) query = query.limit(limit);
+        const { data, error } = await query;
+        if (error) throw new Error(`Falha ao listar ${tableName}: ${error.message}`);
+        return data || [];
       }
       
       let items = getLocalStorage(entityName);
@@ -91,22 +89,19 @@ const createEntityManager = (entityName) => {
 
     filter: async (criteria = {}, sortKey, limit) => {
       if (supabase) {
-        try {
-          let query = supabase.from(tableName).select('*');
-          Object.entries(criteria).forEach(([k, v]) => {
-            query = query.eq(k, v);
-          });
-          if (sortKey) {
-            const isDesc = sortKey.startsWith('-');
-            const field = isDesc ? sortKey.substring(1) : sortKey;
-            query = query.order(field, { ascending: !isDesc });
-          }
-          if (limit) query = query.limit(limit);
-          const { data, error } = await query;
-          if (!error && data) return data;
-        } catch (e) {
-          console.warn(`Supabase filter error for ${tableName}:`, e);
+        let query = supabase.from(tableName).select('*');
+        Object.entries(criteria).forEach(([k, v]) => {
+          query = query.eq(k, v);
+        });
+        if (sortKey) {
+          const isDesc = sortKey.startsWith('-');
+          const field = isDesc ? sortKey.substring(1) : sortKey;
+          query = query.order(field, { ascending: !isDesc });
         }
+        if (limit) query = query.limit(limit);
+        const { data, error } = await query;
+        if (error) throw new Error(`Falha ao filtrar ${tableName}: ${error.message}`);
+        return data || [];
       }
 
       let items = getLocalStorage(entityName)
@@ -127,12 +122,9 @@ const createEntityManager = (entityName) => {
 
     create: async (data) => {
       if (supabase) {
-        try {
-          const { data: inserted, error } = await supabase.from(tableName).insert([data]).select();
-          if (!error && inserted && inserted[0]) return inserted[0];
-        } catch (e) {
-          console.warn(`Supabase create error for ${tableName}:`, e);
-        }
+        const { data: inserted, error } = await supabase.from(tableName).insert([data]).select();
+        if (error) throw new Error(`Falha ao criar em ${tableName}: ${error.message}`);
+        return inserted?.[0] || null;
       }
 
       const items = getLocalStorage(entityName);
@@ -148,12 +140,9 @@ const createEntityManager = (entityName) => {
 
     update: async (id, data) => {
       if (supabase) {
-        try {
-          const { data: updated, error } = await supabase.from(tableName).update(data).eq('id', id).select();
-          if (!error && updated && updated[0]) return updated[0];
-        } catch (e) {
-          console.warn(`Supabase update error for ${tableName}:`, e);
-        }
+        const { data: updated, error } = await supabase.from(tableName).update(data).eq('id', id).select();
+        if (error) throw new Error(`Falha ao atualizar ${tableName}: ${error.message}`);
+        return updated?.[0] || null;
       }
 
       const items = getLocalStorage(entityName);
@@ -168,12 +157,9 @@ const createEntityManager = (entityName) => {
 
     delete: async (id) => {
       if (supabase) {
-        try {
-          const { error } = await supabase.from(tableName).delete().eq('id', id);
-          if (!error) return true;
-        } catch (e) {
-          console.warn(`Supabase delete error for ${tableName}:`, e);
-        }
+        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        if (error) throw new Error(`Falha ao excluir de ${tableName}: ${error.message}`);
+        return true;
       }
 
       let items = getLocalStorage(entityName);
@@ -184,14 +170,11 @@ const createEntityManager = (entityName) => {
 
     bulkUpdate: async (updates) => {
       if (supabase) {
-        try {
-          for (const { id, data } of updates) {
-            await supabase.from(tableName).update(data).eq('id', id);
-          }
-          return true;
-        } catch (e) {
-          console.warn(`Supabase bulkUpdate error for ${tableName}:`, e);
+        for (const { id, data } of updates) {
+          const { error } = await supabase.from(tableName).update(data).eq('id', id);
+          if (error) throw new Error(`Falha ao atualizar ${tableName}: ${error.message}`);
         }
+        return true;
       }
 
       const items = getLocalStorage(entityName);
