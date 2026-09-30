@@ -17,8 +17,20 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
   const [editingId, setEditingId] = useState(null);
 
   const handleSave = async (id, data) => {
-    await onUpdate(id, data);
-    setEditingId(null);
+    try {
+      await onUpdate(id, data);
+      setEditingId(null);
+    } catch (error) {
+      console.error('Erro ao atualizar player:', error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await onDelete(id);
+    } catch (error) {
+      console.error('Erro ao excluir player:', error);
+    }
   };
 
   const handleDragEnd = (result) => {
@@ -111,7 +123,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(player.id)}>
                                     <Pencil className="w-4 h-4 text-muted-foreground" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(player.id)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(player.id)}>
                                     <Trash2 className="w-4 h-4 text-red-400" />
                                   </Button>
                                 </div>
