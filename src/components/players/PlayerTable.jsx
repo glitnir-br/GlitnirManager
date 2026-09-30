@@ -70,12 +70,17 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                     players.map((player, index) => {
                       if (editingId === player.id) {
                         return (
-                          <PlayerEditRow
-                            key={player.id}
-                            player={player}
-                            onSave={handleSave}
-                            onCancel={() => setEditingId(null)}
-                          />
+                          <Draggable key={player.id} draggableId={String(player.id)} index={index}>
+                            {(dragProvided) => (
+                              <PlayerEditRow
+                                player={player}
+                                onSave={handleSave}
+                                onCancel={() => setEditingId(null)}
+                                rowRef={dragProvided.innerRef}
+                                draggableProps={dragProvided.draggableProps}
+                              />
+                            )}
+                          </Draggable>
                         );
                       }
 
@@ -89,7 +94,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                       }
 
                       return (
-                        <Draggable key={player.id} draggableId={player.id} index={index}>
+                        <Draggable key={player.id} draggableId={String(player.id)} index={index}>
                           {(dragProvided, snapshot) => (
                             <TableRow
                               ref={dragProvided.innerRef}

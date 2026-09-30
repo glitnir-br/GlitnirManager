@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
 
-export default function PlayerEditRow({ player, onSave, onCancel }) {
+export default function PlayerEditRow({ player, onSave, onCancel, rowRef, draggableProps }) {
   const [form, setForm] = useState({
     nick: player.nick || '',
     steamid: player.steamid || '',
@@ -16,7 +16,7 @@ export default function PlayerEditRow({ player, onSave, onCancel }) {
   });
 
   return (
-    <TableRow className="bg-primary/5">
+    <TableRow ref={rowRef} {...draggableProps} className="bg-primary/5">
       <TableCell></TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
