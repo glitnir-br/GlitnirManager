@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, ShoppingCart, ShieldBan, X, TrendingDown, BarChart2, Shield, Lock, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, ShoppingCart, ShieldBan, X, TrendingDown, BarChart2, Shield, Lock, UserCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -42,6 +42,15 @@ export default function Sidebar({ open, setOpen }) {
                 alt="Glitnir"
                 className="w-12 h-12 object-contain"
               />
+              <a
+                href="http://162.43.190.115/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abrir Painel Glitnir"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
               <div>
                 <h1 className="font-bold text-foreground tracking-tight">Glitnir</h1>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">CONTROLE</p>
