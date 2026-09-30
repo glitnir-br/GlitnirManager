@@ -34,7 +34,7 @@ export default function SecuritySettings() {
       </div>
 
       <Tabs defaultValue="alerts" className="space-y-4">
-        <TabsList className="bg-secondary/50">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-secondary/50 sm:grid-cols-3">
           <TabsTrigger value="alerts" className="gap-2">
             <AlertTriangle className="w-4 h-4" />
             Alertas

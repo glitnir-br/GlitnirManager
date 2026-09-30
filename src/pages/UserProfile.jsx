@@ -29,23 +29,23 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Meu Perfil</h1>
         <p className="text-muted-foreground text-sm mt-1">Informações da sua conta</p>
       </div>
 
       {/* Avatar + info */}
-      <div className="bg-card border border-border rounded-xl p-6">
-        <div className="flex items-center gap-5">
+      <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-5 sm:text-left">
           <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center text-2xl font-bold text-primary">
             {user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-xl font-bold text-foreground">{user?.full_name || 'Usuário'}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Mail className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{user?.email}</span>
+              <span className="min-w-0 break-all text-sm text-muted-foreground">{user?.email}</span>
             </div>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default function UserProfile() {
 
       {/* Detalhes */}
       <div className="bg-card border border-border rounded-xl divide-y divide-border">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <Shield className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Cargo</span>
@@ -61,7 +61,7 @@ export default function UserProfile() {
           <Badge variant="outline" className={roleInfo.color}>{roleInfo.label}</Badge>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <User className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Status</span>
@@ -75,7 +75,7 @@ export default function UserProfile() {
           </Badge>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Membro desde</span>
