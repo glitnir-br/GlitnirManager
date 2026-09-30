@@ -42,15 +42,6 @@ export default function Sidebar({ open, setOpen }) {
                 alt="Glitnir"
                 className="w-12 h-12 object-contain"
               />
-              <a
-                href="http://162.43.190.115/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Abrir Painel Glitnir"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
               <div>
                 <h1 className="font-bold text-foreground tracking-tight">Glitnir</h1>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">CONTROLE</p>
@@ -88,6 +79,15 @@ export default function Sidebar({ open, setOpen }) {
         </nav>
 
         <div className="p-4 border-t border-border space-y-2">
+          <a
+            href="http://162.43.190.115/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+          >
+            <ExternalLink className="w-5 h-5" />
+            Painel Glitnir
+          </a>
           <Link
             to="/profile"
             onClick={() => setOpen(false)}
