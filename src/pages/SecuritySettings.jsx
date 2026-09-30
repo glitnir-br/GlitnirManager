@@ -49,15 +49,15 @@ export default function SecuritySettings() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="alerts">
+        <TabsContent value="alerts" className="w-full max-w-none">
           <SecurityNotifications />
         </TabsContent>
 
-        <TabsContent value="2fa">
+        <TabsContent value="2fa" className="w-full max-w-none">
           <TwoFactorAuth />
         </TabsContent>
 
-        <TabsContent value="audit">
+        <TabsContent value="audit" className="w-full max-w-none">
           <AuditLog />
         </TabsContent>
       </Tabs>

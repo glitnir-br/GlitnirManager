@@ -36,7 +36,7 @@ export default function UserProfile() {
       </div>
 
       {/* Avatar + info */}
-      <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+      <div className="w-full max-w-none bg-card border border-border rounded-xl p-4 sm:p-6">
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-5 sm:text-left">
           <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center text-2xl font-bold text-primary">
             {user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
@@ -52,7 +52,7 @@ export default function UserProfile() {
       </div>
 
       {/* Detalhes */}
-      <div className="bg-card border border-border rounded-xl divide-y divide-border">
+      <div className="w-full max-w-none bg-card border border-border rounded-xl divide-y divide-border">
         <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <Shield className="w-4 h-4 text-muted-foreground" />
