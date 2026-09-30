@@ -71,7 +71,7 @@ export default function FinancialPasswordField({ title, module }) {
   };
 
   return (
-    <form onSubmit={handlePasswordUpdate} className="space-y-4">
+    <form onSubmit={handlePasswordUpdate} className="w-full space-y-4">
       <h3 className="font-semibold text-foreground">{title}</h3>
       
       <div>
@@ -108,7 +108,7 @@ export default function FinancialPasswordField({ title, module }) {
       {error && <p className="text-red-400 text-sm">{error}</p>}
       {message && <p className="text-green-400 text-sm">{message}</p>}
 
-      <Button type="submit" disabled={loading} size="sm" className="bg-primary hover:bg-primary/90">
+      <Button type="submit" disabled={loading} size="sm" className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
         {loading ? 'Atualizando...' : 'Atualizar'}
       </Button>
     </form>

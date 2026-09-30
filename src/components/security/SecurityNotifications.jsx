@@ -62,13 +62,13 @@ export default function SecurityNotifications() {
   }, [user]);
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-3">
       {alerts.map(alert => {
         const Icon = alert.icon;
         return (
           <Alert
             key={alert.id}
-            className={alert.type === 'danger' ? 'bg-red-500/10 border-red-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}
+            className={`w-full ${alert.type === 'danger' ? 'bg-red-500/10 border-red-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}
           >
             <Icon className="h-4 w-4" />
             <AlertDescription>

@@ -102,7 +102,7 @@ export default function AdminSettings() {
 
   return (
     <PasswordProtectedArea title="Configurações Administrativas">
-      <div className="space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Configurações de Administrador</h1>
           <p className="text-muted-foreground mt-1">
@@ -118,15 +118,15 @@ export default function AdminSettings() {
             <TabsTrigger value="reset" className="gap-2 text-destructive">Reset de Dados</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="password" className="w-full max-w-none">
-            <div className="w-full max-w-none space-y-6 rounded-xl border border-border bg-card p-4 sm:p-6">
+          <TabsContent value="password" className="w-full">
+            <div className="w-full space-y-6 rounded-xl border border-border bg-card p-4 sm:p-6">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-2">Senhas de Acesso aos Módulos</h2>
                 <p className="text-muted-foreground text-sm mb-6">
                   Defina a senha que será usada para acessar as áreas de Doações/GC, Pacotes de Guildas e Despesas. Senha padrão: <span className="font-semibold text-primary">Pituca00</span>
                 </p>
 
-                <div className="space-y-6">
+                <div className="w-full space-y-6">
                    <FinancialPasswordField title="Doações/GC" module="doacoes" />
                    <div className="border-t border-border pt-6"></div>
                    <FinancialPasswordField title="Pacotes Guildas" module="compras" />
@@ -141,8 +141,8 @@ export default function AdminSettings() {
             </div>
           </TabsContent>
 
-          <TabsContent value="access" className="w-full max-w-none">
-            <div className="w-full max-w-none rounded-xl border border-border bg-card p-4 sm:p-6">
+          <TabsContent value="access" className="w-full">
+            <div className="w-full rounded-xl border border-border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-foreground mb-2">Solicitações de Acesso</h2>
@@ -162,7 +162,7 @@ export default function AdminSettings() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="w-full overflow-x-auto rounded-lg border border-border">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-secondary/50">
@@ -188,7 +188,7 @@ export default function AdminSettings() {
                               value={pendingRoles[request.id] || 'nenhum'}
                               onValueChange={(val) => setPendingRoles(prev => ({ ...prev, [request.id]: val }))}
                             >
-                              <SelectTrigger className="w-32 h-8 text-xs">
+                              <SelectTrigger className="h-8 w-full text-xs sm:w-32">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -242,14 +242,14 @@ export default function AdminSettings() {
             </div>
           </TabsContent>
 
-          <TabsContent value="gc" className="w-full max-w-none">
-            <div className="w-full max-w-none rounded-xl border border-border bg-card p-4 sm:p-6">
+          <TabsContent value="gc" className="w-full">
+            <div className="w-full rounded-xl border border-border bg-card p-4 sm:p-6">
               <GcTabelaEditor />
             </div>
           </TabsContent>
 
-          <TabsContent value="reset" className="w-full max-w-none">
-            <div className="w-full max-w-none rounded-xl border border-destructive/30 bg-card p-4 sm:p-6">
+          <TabsContent value="reset" className="w-full">
+            <div className="w-full rounded-xl border border-destructive/30 bg-card p-4 sm:p-6">
               <DataResetPanel />
             </div>
           </TabsContent>

@@ -50,7 +50,7 @@ export default function GcTabelaEditor() {
   if (isLoading) return <div className="text-muted-foreground text-sm">Carregando...</div>;
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <Coins className="w-4 h-4 text-primary" />
         <h3 className="text-base font-semibold text-foreground">Tabela de GC (Moedas Glitnir)</h3>
@@ -59,7 +59,7 @@ export default function GcTabelaEditor() {
         Edite os valores exibidos na página de Doações/GC. Alterações são salvas ao sair do campo.
       </p>
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="w-full overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-secondary/50 border-b border-border">
@@ -83,7 +83,7 @@ export default function GcTabelaEditor() {
                     type="number"
                     defaultValue={item.reais}
                     onBlur={(e) => handleUpdate(item, 'reais', e.target.value)}
-                    className="bg-secondary h-8 w-28 font-mono"
+                    className="h-8 w-full bg-secondary font-mono"
                   />
                 </td>
                 <td className="px-4 py-2">
@@ -91,7 +91,7 @@ export default function GcTabelaEditor() {
                     type="number"
                     defaultValue={item.gc}
                     onBlur={(e) => handleUpdate(item, 'gc', e.target.value)}
-                    className="bg-secondary h-8 w-28 font-mono"
+                    className="h-8 w-full bg-secondary font-mono"
                   />
                 </td>
                 <td className="px-4 py-2">
@@ -111,25 +111,25 @@ export default function GcTabelaEditor() {
       </div>
 
       {/* Adicionar novo */}
-      <div className="flex items-center gap-3">
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
         <Input
           type="number"
           placeholder="R$ valor"
           value={newReais}
           onChange={(e) => setNewReais(e.target.value)}
-          className="bg-secondary h-9 w-32 font-mono"
+          className="h-9 w-full bg-secondary font-mono"
         />
         <Input
           type="number"
           placeholder="GC"
           value={newGc}
           onChange={(e) => setNewGc(e.target.value)}
-          className="bg-secondary h-9 w-32 font-mono"
+          className="h-9 w-full bg-secondary font-mono"
         />
         <Button
           onClick={handleAdd}
           disabled={!newReais || !newGc || createMutation.isPending}
-          className="bg-primary hover:bg-primary/90 h-9"
+          className="h-9 w-full bg-primary hover:bg-primary/90 sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-1" /> Adicionar
         </Button>

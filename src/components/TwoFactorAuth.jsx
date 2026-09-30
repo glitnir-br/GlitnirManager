@@ -82,9 +82,9 @@ export default function TwoFactorAuth() {
   };
 
   return (
-    <Card className="bg-card border-border p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
+    <Card className="w-full border-border bg-card p-4 sm:p-6">
+      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <Shield className="w-5 h-5 text-primary mt-1" />
           <div>
             <h3 className="font-semibold text-foreground">Autenticação de Dois Fatores</h3>
@@ -97,6 +97,7 @@ export default function TwoFactorAuth() {
           onClick={is2FAEnabled ? disable2FA : enable2FA}
           disabled={loading}
           variant={is2FAEnabled ? 'destructive' : 'default'}
+          className="w-full sm:w-auto"
         >
           {loading ? 'Processando...' : is2FAEnabled ? 'Desabilitar' : 'Habilitar'}
         </Button>
@@ -107,7 +108,7 @@ export default function TwoFactorAuth() {
           <p className="text-sm font-semibold text-yellow-400 mb-4">
             ⚠️ Guarde esses códigos em segurança. Eles servem para recuperar a conta se perder o acesso:
           </p>
-          <div className="grid grid-cols-2 gap-2 bg-secondary/30 p-4 rounded-lg">
+          <div className="grid w-full grid-cols-1 gap-2 rounded-lg bg-secondary/30 p-4 sm:grid-cols-2">
             {backupCodes.map((code, idx) => (
               <div
                 key={idx}

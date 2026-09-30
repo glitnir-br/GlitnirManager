@@ -68,7 +68,7 @@ export default function DataResetPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
         <AlertTriangle className="w-5 h-5 text-destructive" />
         <h3 className="text-base font-semibold text-foreground">Resetar Dados do Sistema</h3>
@@ -77,7 +77,7 @@ export default function DataResetPanel() {
         Selecione as categorias que deseja apagar permanentemente. <span className="text-destructive font-medium">Esta ação não pode ser desfeita.</span>
       </p>
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="w-full overflow-hidden rounded-lg border border-border">
         {/* Selecionar tudo */}
         <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50 border-b border-border">
           <Checkbox
@@ -117,7 +117,7 @@ export default function DataResetPanel() {
         variant="destructive"
         disabled={!hasSelection || loading}
         onClick={() => setConfirmOpen(true)}
-        className="gap-2"
+        className="w-full gap-2 sm:w-auto"
       >
         <Trash2 className="w-4 h-4" />
         Apagar Selecionados ({selectedCategories.length})

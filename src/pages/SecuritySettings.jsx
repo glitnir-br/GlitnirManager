@@ -27,13 +27,13 @@ export default function SecuritySettings() {
 
   return (
     <FinancialPasswordProtection module="seguranca">
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Configurações de Segurança</h1>
         <p className="text-muted-foreground mt-2">Gerencie a segurança da sua conta e veja o histórico de atividades</p>
       </div>
 
-      <Tabs defaultValue="alerts" className="space-y-4">
+      <Tabs defaultValue="alerts" className="w-full space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-secondary/50 sm:grid-cols-3">
           <TabsTrigger value="alerts" className="gap-2">
             <AlertTriangle className="w-4 h-4" />
@@ -49,15 +49,15 @@ export default function SecuritySettings() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="alerts" className="w-full max-w-none">
+        <TabsContent value="alerts" className="w-full">
           <SecurityNotifications />
         </TabsContent>
 
-        <TabsContent value="2fa" className="w-full max-w-none">
+        <TabsContent value="2fa" className="w-full">
           <TwoFactorAuth />
         </TabsContent>
 
-        <TabsContent value="audit" className="w-full max-w-none">
+        <TabsContent value="audit" className="w-full">
           <AuditLog />
         </TabsContent>
       </Tabs>

@@ -41,7 +41,7 @@ export default function AuditLog() {
 
   if (!logs.length) {
     return (
-      <Card className="bg-card border-border p-6 text-center">
+      <Card className="w-full border-border bg-card p-6 text-center">
         <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
         <p className="text-muted-foreground">Nenhum evento registrado</p>
       </Card>
@@ -49,37 +49,39 @@ export default function AuditLog() {
   }
 
   return (
-    <Card className="bg-card border-border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-secondary/50">
-            <TableHead className="text-xs uppercase text-muted-foreground">Data/Hora</TableHead>
-            <TableHead className="text-xs uppercase text-muted-foreground">Ação</TableHead>
-            <TableHead className="text-xs uppercase text-muted-foreground">Usuário</TableHead>
-            <TableHead className="text-xs uppercase text-muted-foreground">Realizado Por</TableHead>
-            <TableHead className="text-xs uppercase text-muted-foreground">Detalhes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {logs.map((log) => (
-            <TableRow key={log.id} className="hover:bg-secondary/20">
-              <TableCell className="text-xs text-muted-foreground">
-                {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-              </TableCell>
-              <TableCell>
-                <span className={`text-sm font-semibold ${ACTION_COLORS[log.action] || 'text-foreground'}`}>
-                  {ACTION_LABELS[log.action] || log.action}
-                </span>
-              </TableCell>
-              <TableCell className="text-sm text-foreground font-mono">{log.user_email}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{log.performed_by}</TableCell>
-              <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
-                {log.details}
-              </TableCell>
+    <Card className="w-full overflow-hidden border-border bg-card">
+      <div className="w-full overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-secondary/50">
+              <TableHead className="text-xs uppercase text-muted-foreground">Data/Hora</TableHead>
+              <TableHead className="text-xs uppercase text-muted-foreground">Ação</TableHead>
+              <TableHead className="text-xs uppercase text-muted-foreground">Usuário</TableHead>
+              <TableHead className="text-xs uppercase text-muted-foreground">Realizado Por</TableHead>
+              <TableHead className="text-xs uppercase text-muted-foreground">Detalhes</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {logs.map((log) => (
+              <TableRow key={log.id} className="hover:bg-secondary/20">
+                <TableCell className="text-xs text-muted-foreground">
+                  {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                </TableCell>
+                <TableCell>
+                  <span className={`text-sm font-semibold ${ACTION_COLORS[log.action] || 'text-foreground'}`}>
+                    {ACTION_LABELS[log.action] || log.action}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm text-foreground font-mono">{log.user_email}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{log.performed_by}</TableCell>
+                <TableCell className="whitespace-normal break-words text-xs text-muted-foreground">
+                  {log.details}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </Card>
   );
 }

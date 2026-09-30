@@ -23,8 +23,8 @@ export default function AppLayout() {
       <AccessRequestNotification />
 
       {/* Main content */}
-      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
-        <div className="p-4 md:p-8">
+      <main className="min-h-screen min-w-0 pt-16 lg:ml-64 lg:pt-0">
+        <div className="w-full min-w-0 p-4 md:p-8">
           <Outlet />
         </div>
       </main>
