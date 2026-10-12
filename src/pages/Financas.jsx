@@ -183,11 +183,16 @@ export default function Financas() {
   });
 
   const selectPlayer = (player) => {
+    const serversForSteamId = [...new Set(players
+      .filter((item) => item.steamid && item.steamid === player.steamid)
+      .map((item) => item.server)
+      .filter((item) => item === 'server_1' || item === 'server_2'))];
     setForm((current) => ({
       ...current,
       player_id: player.id,
       steamid: player.steamid || '',
       personagem: playerName(player) === 'Sem personagem' ? '' : playerName(player),
+      server: serversForSteamId.length === 1 ? serversForSteamId[0] : '',
     }));
     setPlayerPickerOpen(false);
   };
