@@ -35,20 +35,37 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useServer } from '@/lib/ServerContext';
 import { cn } from '@/lib/utils';
 
-const emptyForm = {
-  data: '',
+const localDateTimeNow = () => {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const emptyForm = () => ({
+  data: localDateTimeNow(),
   player_id: '',
   steamid: '',
   personagem: '',
   valor: '',
   gc: '',
   valorOption: '',
-};
+});
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-';
-  const datePart = dateStr.includes('T') ? dateStr.slice(0, 10) : dateStr;
-  return format(parseISO(`${datePart}T12:00:00`), 'dd/MM/yyyy');
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? parseISO(`${dateStr}T12:00:00`)
+    : parseISO(dateStr);
+  return format(parsed, 'dd/MM/yyyy HH:mm');
+};
+
+const toDateTimeLocal = (dateStr) => {
+  if (!dateStr) return localDateTimeNow();
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? parseISO(`${dateStr}T12:00:00`)
+    : parseISO(dateStr);
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 };
 
 const formatMoney = (value) =>
@@ -117,11 +134,12 @@ export default function Financas() {
     setDialogOpen(false);
     setPlayerPickerOpen(false);
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(emptyForm());
   };
 
   const donationPayload = ({ valorOption: _valorOption, ...data }) => ({
     ...data,
+    data: data.data ? new Date(data.data).toISOString() : new Date().toISOString(),
     nick: data.personagem,
     valor: Number(data.valor) || 0,
     gc: String(data.gc ?? ''),
@@ -192,7 +210,7 @@ export default function Financas() {
     );
     setEditingId(finance.id);
     setForm({
-      data: finance.data || '',
+      data: toDateTimeLocal(finance.data || finance.created_date),
       player_id: matchingPlayer?.id || finance.player_id || '',
       steamid: matchingPlayer?.steamid || finance.steamid || '',
       personagem: matchingPlayer
@@ -210,11 +228,11 @@ export default function Financas() {
 
   const total = financas.reduce((sum, finance) => sum + Number(finance.valor || 0), 0);
   const availableDates = [...new Set(
-    financas.map((finance) => finance.data || finance.created_date?.slice(0, 10) || '').filter(Boolean),
+    financas.map((finance) => (finance.data || finance.created_date || '').slice(0, 10)).filter(Boolean),
   )].sort((a, b) => b.localeCompare(a));
 
   const filtered = financas.filter((finance) => {
-    const date = finance.data || finance.created_date?.slice(0, 10) || '';
+    const date = (finance.data || finance.created_date || '').slice(0, 10);
     const identity = `${finance.personagem || finance.nick || ''} ${finance.steamid || ''}`.toLowerCase();
     return (
       (!filterPlayer || identity.includes(filterPlayer.toLowerCase())) &&
@@ -388,14 +406,14 @@ export default function Financas() {
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
                   <Label>Data</Label>
-                  <Input type="date" value={form.data} onChange={(event) => setForm({ ...form, data: event.target.value })} className="bg-secondary" />
+                  <Input type="datetime-local" value={form.data} onChange={(event) => setForm({ ...form, data: event.target.value })} className="bg-secondary" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Player da whitelist *</Label>
+                  <Label>Personagem ou Steam ID *</Label>
                   <Popover open={playerPickerOpen} onOpenChange={setPlayerPickerOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" className="h-auto min-h-10 w-full justify-between bg-secondary text-left font-normal">
-                        <span className="min-w-0 truncate">
+                        <span className={cn('min-w-0 truncate', !form.player_id && 'text-muted-foreground')}>
                           {form.player_id ? `${form.personagem || 'Sem personagem'} — ${form.steamid}` : 'Buscar por personagem ou Steam ID'}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -403,7 +421,7 @@ export default function Financas() {
                     </PopoverTrigger>
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Digite o personagem ou Steam ID..." />
+                        <CommandInput autoFocus placeholder="Digite para buscar personagem ou Steam ID..." />
                         <CommandList>
                           <CommandEmpty>Nenhum player encontrado na whitelist.</CommandEmpty>
                           <CommandGroup>
