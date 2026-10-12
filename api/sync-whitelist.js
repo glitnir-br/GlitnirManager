@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
     const { data: existingPlayers, error: listError } = await admin
       .from('players')
-      .select('id,steamid,nick')
+      .select('id,steamid,nick,status')
       .eq('server', server);
     if (listError) throw listError;
 
@@ -153,9 +153,14 @@ export default async function handler(req, res) {
 
       if (matches.length) {
         for (const player of matches) {
-          const playerChanges = player.nick === entry.steamid
-            ? { ...changes, nick: importedName }
-            : changes;
+          const status = personagens.length === 0
+            ? 'inativo'
+            : (player.status === 'inativo' ? 'ativo' : player.status);
+          const playerChanges = {
+            ...changes,
+            status,
+            ...(player.nick === entry.steamid ? { nick: importedName } : {}),
+          };
           const { error } = await admin.from('players').update(playerChanges).eq('id', player.id);
           if (error) throw error;
           updated += 1;
@@ -166,7 +171,7 @@ export default async function handler(req, res) {
           server,
           steamid: entry.steamid,
           nick: importedName,
-          status: 'ativo',
+          status: personagens.length ? 'ativo' : 'inativo',
           duplicado: false,
         });
         if (error) throw error;

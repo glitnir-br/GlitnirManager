@@ -76,7 +76,11 @@ export default function PlayerEditRow({ player, onSave, onCancel, rowRef, dragga
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
             const { personagem, ...data } = form;
-            onSave(player.id, { ...data, personagens: personagem.split(',').map((name) => name.trim()).filter(Boolean) });
+            const personagens = personagem.split(',').map((name) => name.trim()).filter(Boolean);
+            const status = personagens.length === 0
+              ? 'inativo'
+              : (player.status === 'inativo' && data.status === 'inativo' ? 'ativo' : data.status);
+            onSave(player.id, { ...data, personagens, status });
           }}>
             <Check className="w-4 h-4 text-green-400" />
           </Button>

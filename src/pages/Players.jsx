@@ -129,7 +129,10 @@ export default function Players() {
       whitelist: (a, b) => Number(b.na_whitelist) - Number(a.na_whitelist) || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
       status: (a, b) => String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR') || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
     };
-    return sortOrder === 'manual' ? visible : [...visible].sort(sorters[sortOrder]);
+    const organized = sortOrder === 'manual' ? visible : [...visible].sort(sorters[sortOrder]);
+    const withCharacter = organized.filter((player) => player.personagens?.some((name) => name.trim()));
+    const withoutCharacter = organized.filter((player) => !player.personagens?.some((name) => name.trim()));
+    return [...withCharacter, ...withoutCharacter];
   }, [manuallySortedPlayers, search, statusFilter, guildFilter, sortOrder]);
 
   const handleReorder = (reorderedList) => {

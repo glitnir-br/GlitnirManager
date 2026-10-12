@@ -33,7 +33,8 @@ export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
     if (!form.steamid) return;
     setLoading(true);
     const { personagem, ...data } = form;
-    await onAdd({ ...data, nick: '', personagens: personagem.trim() ? [personagem.trim()] : [] });
+    const personagens = personagem.trim() ? [personagem.trim()] : [];
+    await onAdd({ ...data, nick: '', personagens, status: personagens.length ? data.status : 'inativo' });
     setForm(initialForm);
     setLoading(false);
     onOpenChange(false);
