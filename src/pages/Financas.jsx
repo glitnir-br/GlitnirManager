@@ -456,7 +456,7 @@ export default function Financas() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                {!form.player_id && <div className="space-y-2"><Label>Observação *</Label><Input value={form.observacao} onChange={(event) => setForm((current) => ({ ...current, observacao: event.target.value }))} placeholder="Ex: Doação recebida, aguardando entrada no servidor" className="bg-secondary" /></div>}
+                {!form.player_id && <div className="space-y-2"><Label>Observação <span className="font-normal text-muted-foreground">(opcional)</span></Label><Input value={form.observacao} onChange={(event) => setForm((current) => ({ ...current, observacao: event.target.value }))} placeholder="Ex: Doação recebida, aguardando entrada no servidor" className="bg-secondary" /></div>}
                 <div className="space-y-2">
                   <Label>Servidor <span className="font-normal text-muted-foreground">(opcional)</span></Label>
                   <Select value={form.server || 'nao_informado'} onValueChange={(value) => setForm((current) => ({ ...current, server: value === 'nao_informado' ? '' : value }))}>
@@ -501,7 +501,7 @@ export default function Financas() {
                 <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
                 <Button
                   onClick={() => editingId ? updateMutation.mutate({ id: editingId, data: form }) : createMutation.mutate(form)}
-                  disabled={(!form.player_id && !form.observacao.trim()) || !form.valor || !form.gc || createMutation.isPending || updateMutation.isPending}
+                  disabled={!form.valor || !form.gc || createMutation.isPending || updateMutation.isPending}
                   className="bg-primary hover:bg-primary/90"
                 >
                   Salvar
