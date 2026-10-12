@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const WHITELIST_PATH = '/.config/unity3d/IronGate/Valheim/permittedlist.txt';
 const CHARACTERS_PATH = '/.config/unity3d/IronGate/Valheim/characters_local';
+const GUILDS_PATH = '/.config/unity3d/IronGate/Valheim/Guilds';
 const ALLOWED_ROLES = new Set(['adm_principal', 'administrador']);
 
 function send(res, status, body) {
@@ -13,7 +14,7 @@ function parseWhitelist(content) {
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#') || line.startsWith('//')) continue;
-    const id = line.match(/\b\d{15,20}\b/)?.[0];
+    const id = line.match(/\d{15,20}/)?.[0];
     if (!id) continue;
     const label = line
       .replace(id, '')
@@ -53,6 +54,38 @@ function parseCharacterFiles(files) {
     bySteamId: new Map([...characters].map(([id, names]) => [id, [...names].sort()])),
     ignored,
   };
+}
+
+function parseGuildMembers(guildFiles) {
+  const bySteamId = new Map();
+  const conflicts = [];
+
+  for (const { name, content } of guildFiles) {
+    const guildName = name.replace(/\.ya?ml$/i, '');
+    const lines = content.split(/\r?\n/);
+    let insideMembers = false;
+
+    for (const line of lines) {
+      if (/^members\s*:/i.test(line)) {
+        insideMembers = true;
+        continue;
+      }
+      if (insideMembers && /^\S/.test(line) && !/^\s*-/.test(line)) break;
+      if (!insideMembers) continue;
+
+      const playerValue = line.match(/^\s*(?:-\s*)?player\s*:\s*["']?(.+?)["']?\s*$/i)?.[1];
+      const steamid = playerValue?.match(/\d{15,20}/)?.[0];
+      if (!steamid) continue;
+
+      if (bySteamId.has(steamid) && bySteamId.get(steamid) !== guildName) {
+        conflicts.push({ steamid, guilds: [bySteamId.get(steamid), guildName] });
+        continue;
+      }
+      bySteamId.set(steamid, guildName);
+    }
+  }
+
+  return { bySteamId, conflicts };
 }
 
 async function pterodactylRequest(path, responseType = 'json') {
@@ -108,13 +141,27 @@ export default async function handler(req, res) {
 
     const encodedWhitelist = encodeURIComponent(WHITELIST_PATH);
     const encodedCharacters = encodeURIComponent(CHARACTERS_PATH);
-    const [whitelistContent, characterListing] = await Promise.all([
+    const encodedGuilds = encodeURIComponent(GUILDS_PATH);
+    const [whitelistContent, characterListing, guildListing] = await Promise.all([
       pterodactylRequest(`/api/client/servers/${serverId}/files/contents?file=${encodedWhitelist}`, 'text'),
       pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodedCharacters}`),
+      pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodedGuilds}`),
     ]);
 
     const whitelist = parseWhitelist(whitelistContent);
     const parsedCharacters = parseCharacterFiles(characterListing?.data || []);
+    const guildFileNames = (guildListing?.data || [])
+      .map((file) => file?.attributes || file)
+      .filter((file) => file?.is_file !== false && /\.ya?ml$/i.test(file?.name || ''))
+      .map((file) => file.name);
+    const guildFiles = await Promise.all(guildFileNames.map(async (name) => ({
+      name,
+      content: await pterodactylRequest(
+        `/api/client/servers/${serverId}/files/contents?file=${encodeURIComponent(`${GUILDS_PATH}/${name}`)}`,
+        'text',
+      ),
+    })));
+    const parsedGuilds = parseGuildMembers(guildFiles);
     const syncedAt = new Date().toISOString();
 
     const { data: existingPlayers, error: listError } = await admin
@@ -147,6 +194,7 @@ export default async function handler(req, res) {
         whitelist_sincronizada: true,
         whitelist_synced_at: syncedAt,
         personagens,
+        guilda: parsedGuilds.bySteamId.get(entry.steamid) || '',
       };
       const matches = playersBySteamId.get(entry.steamid) || [];
       const importedName = '';
@@ -185,6 +233,9 @@ export default async function handler(req, res) {
       created,
       updated,
       withoutCharacter,
+      guildFiles: guildFiles.length,
+      guildAssignments: parsedGuilds.bySteamId.size,
+      guildConflicts: parsedGuilds.conflicts,
       unmatchedCharacterFiles: parsedCharacters.ignored.slice(0, 20),
       syncedAt,
     });

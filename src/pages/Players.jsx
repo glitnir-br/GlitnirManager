@@ -89,7 +89,7 @@ export default function Players() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['players', server] });
-      setSyncMessage(`${result.whitelist} na whitelist · ${result.created} novos · ${result.withoutCharacter} sem personagem`);
+      setSyncMessage(`${result.whitelist} na whitelist · ${result.created} novos · ${result.guildAssignments || 0} com guilda · ${result.withoutCharacter} sem personagem`);
     },
     onError: (error) => setSyncMessage(error.message),
   });
@@ -118,20 +118,25 @@ export default function Players() {
       return matchesSearch && matchesStatus && matchesGuild;
     });
 
-    const firstCharacter = (player) => player.personagens?.[0] || '';
+    const characterNames = (player) => Array.isArray(player.personagens)
+      ? player.personagens.filter((name) => typeof name === 'string' && name.trim())
+      : [];
+    const firstCharacter = (player) => characterNames(player)[0] || '';
+    const isUnnamed = (player) => characterNames(player).length === 0;
+    const unnamedLast = (sorter) => (a, b) => Number(isUnnamed(a)) - Number(isUnnamed(b)) || sorter(a, b);
     const sorters = {
-      character_asc: (a, b) => firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR', { sensitivity: 'base' }),
-      character_desc: (a, b) => firstCharacter(b).localeCompare(firstCharacter(a), 'pt-BR', { sensitivity: 'base' }),
-      steamid_asc: (a, b) => String(a.steamid || '').localeCompare(String(b.steamid || '')),
-      steamid_desc: (a, b) => String(b.steamid || '').localeCompare(String(a.steamid || '')),
-      newest: (a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0),
-      oldest: (a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0),
-      whitelist: (a, b) => Number(b.na_whitelist) - Number(a.na_whitelist) || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
-      status: (a, b) => String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR') || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
+      character_asc: unnamedLast((a, b) => firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR', { sensitivity: 'base' })),
+      character_desc: unnamedLast((a, b) => firstCharacter(b).localeCompare(firstCharacter(a), 'pt-BR', { sensitivity: 'base' })),
+      steamid_asc: unnamedLast((a, b) => String(a.steamid || '').localeCompare(String(b.steamid || ''))),
+      steamid_desc: unnamedLast((a, b) => String(b.steamid || '').localeCompare(String(a.steamid || ''))),
+      newest: unnamedLast((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0)),
+      oldest: unnamedLast((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0)),
+      whitelist: unnamedLast((a, b) => Number(b.na_whitelist) - Number(a.na_whitelist) || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR')),
+      status: unnamedLast((a, b) => String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR') || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR')),
     };
     const organized = sortOrder === 'manual' ? visible : [...visible].sort(sorters[sortOrder]);
-    const withCharacter = organized.filter((player) => player.personagens?.some((name) => name.trim()));
-    const withoutCharacter = organized.filter((player) => !player.personagens?.some((name) => name.trim()));
+    const withCharacter = organized.filter((player) => !isUnnamed(player));
+    const withoutCharacter = organized.filter(isUnnamed);
     return [...withCharacter, ...withoutCharacter];
   }, [manuallySortedPlayers, search, statusFilter, guildFilter, sortOrder]);
 
