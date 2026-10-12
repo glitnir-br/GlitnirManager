@@ -33,12 +33,13 @@ function parseCharacterFiles(files) {
   return new Map([...characters].map(([id, names]) => [id, [...names].filter(Boolean).sort()]));
 }
 
-async function pterodactylRequest(path, responseType = 'json') {
+async function pterodactylRequest(path, responseType = 'json', options = {}) {
   const baseUrl = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
   const apiKey = process.env.PTERODACTYL_API_KEY;
   if (!baseUrl || !apiKey) throw new Error('Configuração do Pterodactyl incompleta.');
   const response = await fetch(`${baseUrl}${path}`, {
-    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+    method: options.method || 'GET', body: options.body,
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json', ...(options.contentType ? { 'Content-Type': options.contentType } : {}) },
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -73,11 +74,23 @@ export default async function handler(req, res) {
     const serverId = process.env[server === 'server_1' ? 'PTERODACTYL_SERVER_1_ID' : 'PTERODACTYL_SERVER_2_ID'];
     if (!serverId) return send(res, 500, { error: `ID do ${server} não configurado.` });
 
+    const requestedSteamId = String(req.body?.steamid || '').trim().replace(/^Steam_/i, '');
+    const requestedObservation = String(req.body?.observacao || '').trim();
+    if (requestedSteamId && !/^\d{17}$/.test(requestedSteamId)) return send(res, 400, { error: 'Steam ID inválido.' });
     const [banlistContent, characterListing] = await Promise.all([
       pterodactylRequest(`/api/client/servers/${serverId}/files/contents?file=${encodeURIComponent(BANLIST_PATH)}`, 'text'),
       pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodeURIComponent(CHARACTERS_PATH)}`),
     ]);
     const steamids = parseIds(banlistContent);
+    let addedToPterodactyl = false;
+    if (requestedSteamId && !steamids.includes(requestedSteamId)) {
+      const separator = banlistContent && !banlistContent.endsWith('\n') ? '\n' : '';
+      await pterodactylRequest(`/api/client/servers/${serverId}/files/write?file=${encodeURIComponent(BANLIST_PATH)}`, 'text', {
+        method: 'POST', body: `${banlistContent}${separator}${requestedSteamId}\n`, contentType: 'text/plain',
+      });
+      steamids.push(requestedSteamId);
+      addedToPterodactyl = true;
+    }
     const characters = parseCharacterFiles(characterListing?.data || []);
     const syncedAt = new Date().toISOString();
 
@@ -124,7 +137,13 @@ export default async function handler(req, res) {
       if (playerStatusError) throw playerStatusError;
     }
 
-    return send(res, 200, { server, banned: steamids.length, created, updated, withoutCharacter, syncedAt });
+    if (requestedSteamId && requestedObservation) {
+      const { error } = await admin.from('banidos').update({ observacao: requestedObservation }).eq('server', server).eq('steamid', requestedSteamId);
+      if (error) throw error;
+    }
+
+    if (requestedSteamId) await admin.from('security_logs').insert({ action: 'pterodactyl_banlist_add', user_email: authData.user.email, performed_by: authData.user.email, details: `Steam ID ${requestedSteamId} ${addedToPterodactyl ? 'adicionado à' : 'já presente na'} banlist do ${server}.`, timestamp: new Date().toISOString() });
+    return send(res, 200, { server, banned: steamids.length, created, updated, withoutCharacter, syncedAt, addedToPterodactyl });
   } catch (error) {
     console.error('Falha ao sincronizar lista de banidos:', error);
     return send(res, 500, { error: error.message || 'Falha ao sincronizar lista de banidos.' });

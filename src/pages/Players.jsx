@@ -37,18 +37,18 @@ export default function Players() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const isDup = await checkDuplicates(players, { id: null, ...data });
-      const newPlayer = await base44.entities.Player.create({ ...data, server, duplicado: isDup });
-      // Also mark existing players as duplicate if they match
-      if (isDup) {
-        const matches = players.filter(p => p.steamid === data.steamid);
-        for (const match of matches) {
-          if (!match.duplicado) {
-            await base44.entities.Player.update(match.id, { duplicado: true });
-          }
-        }
-      }
-      return newPlayer;
+      if (!supabase) throw new Error('O cadastro na whitelist exige conexão com o Supabase.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+      const response = await fetch('/api/sync-whitelist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ server, steamid: data.steamid, observacao: data.observacao }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao adicionar o player à whitelist.');
+      return result;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });

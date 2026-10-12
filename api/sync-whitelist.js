@@ -95,15 +95,18 @@ function parseGuildMembers(guildFiles) {
   return { bySteamId, conflicts, unmatchedFiles };
 }
 
-async function pterodactylRequest(path, responseType = 'json') {
+async function pterodactylRequest(path, responseType = 'json', options = {}) {
   const baseUrl = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
   const apiKey = process.env.PTERODACTYL_API_KEY;
   if (!baseUrl || !apiKey) throw new Error('Configuração do Pterodactyl incompleta.');
 
   const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method || 'GET',
+    body: options.body,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: 'application/json',
+      ...(options.contentType ? { 'Content-Type': options.contentType } : {}),
     },
   });
 
@@ -146,6 +149,9 @@ export default async function handler(req, res) {
     const serverId = process.env[server === 'server_1' ? 'PTERODACTYL_SERVER_1_ID' : 'PTERODACTYL_SERVER_2_ID'];
     if (!serverId) return send(res, 500, { error: `ID do ${server} não configurado.` });
 
+    const requestedSteamId = String(req.body?.steamid || '').trim().replace(/^Steam_/i, '');
+    const requestedObservation = String(req.body?.observacao || '').trim();
+    if (requestedSteamId && !/^\d{17}$/.test(requestedSteamId)) return send(res, 400, { error: 'Steam ID inválido.' });
     const encodedWhitelist = encodeURIComponent(WHITELIST_PATH);
     const encodedCharacters = encodeURIComponent(CHARACTERS_PATH);
     const encodedGuilds = encodeURIComponent(GUILDS_PATH);
@@ -155,7 +161,16 @@ export default async function handler(req, res) {
       pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodedGuilds}`),
     ]);
 
-    const whitelist = parseWhitelist(whitelistContent);
+    let whitelist = parseWhitelist(whitelistContent);
+    let addedToPterodactyl = false;
+    if (requestedSteamId && !whitelist.some((entry) => entry.steamid === requestedSteamId)) {
+      const separator = whitelistContent && !whitelistContent.endsWith('\n') ? '\n' : '';
+      await pterodactylRequest(`/api/client/servers/${serverId}/files/write?file=${encodedWhitelist}`, 'text', {
+        method: 'POST', body: `${whitelistContent}${separator}${requestedSteamId}\n`, contentType: 'text/plain',
+      });
+      whitelist = [...whitelist, { steamid: requestedSteamId, label: null }];
+      addedToPterodactyl = true;
+    }
     const parsedCharacters = parseCharacterFiles(characterListing?.data || []);
     const guildFileNames = (guildListing?.data || [])
       .map((file) => file?.attributes || file)
@@ -234,6 +249,12 @@ export default async function handler(req, res) {
       }
     }
 
+    if (requestedSteamId && requestedObservation) {
+      const { error } = await admin.from('players').update({ observacao: requestedObservation }).eq('server', server).eq('steamid', requestedSteamId);
+      if (error) throw error;
+    }
+
+    if (requestedSteamId) await admin.from('security_logs').insert({ action: 'pterodactyl_whitelist_add', user_email: authData.user.email, performed_by: authData.user.email, details: `Steam ID ${requestedSteamId} ${addedToPterodactyl ? 'adicionado à' : 'já presente na'} whitelist do ${server}.`, timestamp: new Date().toISOString() });
     return send(res, 200, {
       server,
       whitelist: whitelist.length,
@@ -246,6 +267,7 @@ export default async function handler(req, res) {
       unmatchedGuildFiles: parsedGuilds.unmatchedFiles,
       unmatchedCharacterFiles: parsedCharacters.ignored.slice(0, 20),
       syncedAt,
+      addedToPterodactyl,
     });
   } catch (error) {
     console.error('Falha ao sincronizar whitelist:', error);

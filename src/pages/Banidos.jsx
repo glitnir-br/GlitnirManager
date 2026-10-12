@@ -49,9 +49,17 @@ export default function Banidos() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const banido = await base44.entities.Banido.create({ ...data, server });
-      await markPlayerAsBanned(data.steamid);
-      return banido;
+      if (!supabase) throw new Error('O cadastro na banlist exige conexão com o Supabase.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+      const response = await fetch('/api/sync-banlist', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ server, steamid: data.steamid, observacao: data.observacao }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao adicionar o Steam ID à banlist.');
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banidos', server] });
