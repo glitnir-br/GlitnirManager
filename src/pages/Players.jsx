@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
-import { Plus, Download } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import PlayerTable from '@/components/players/PlayerTable';
 import PlayerFilters from '@/components/players/PlayerFilters';
 import AddPlayerDialog from '@/components/players/AddPlayerDialog';
@@ -167,41 +167,6 @@ export default function Players() {
               {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar whitelist'}
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => {
-              const content = players.flatMap(p => p.personagens || []).filter(Boolean).join('\n');
-              const blob = new Blob([content], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'personagens.txt';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Personagens
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const content = players
-                .filter(p => p.steamid)
-                .map(p => p.steamid)
-                .join('\n');
-              const blob = new Blob([content], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'whitelist_steamids.txt';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            SteamIDs
-          </Button>
           <Button onClick={() => setDialogOpen(true)} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Player

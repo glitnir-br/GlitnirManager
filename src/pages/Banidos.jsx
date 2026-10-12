@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Search, ShieldBan, Pencil, Download, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Search, ShieldBan, Pencil, RefreshCw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -129,25 +129,6 @@ export default function Banidos() {
               {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar banidos'}
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => {
-              const content = banidos
-                .filter(b => b.personagens?.length || b.steamid)
-                .map(b => `${b.personagens?.join(', ') || ''} ${b.steamid || ''}`.trim())
-                .join('\n');
-              const blob = new Blob([content], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'banidos.txt';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Personagens + SteamIDs
-          </Button>
           <Button onClick={() => setDialogOpen(true)} className="bg-destructive hover:bg-destructive/90">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Banido
