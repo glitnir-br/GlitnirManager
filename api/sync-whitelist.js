@@ -131,7 +131,7 @@ export default async function handler(req, res) {
 
     const { error: resetError } = await admin
       .from('players')
-      .update({ na_whitelist: false, whitelist_syncronizada: true, whitelist_synced_at: syncedAt })
+      .update({ na_whitelist: false, whitelist_sincronizada: true, whitelist_synced_at: syncedAt })
       .eq('server', server);
     if (resetError) throw resetError;
 
@@ -144,7 +144,7 @@ export default async function handler(req, res) {
       if (personagens.length === 0) withoutCharacter += 1;
       const changes = {
         na_whitelist: true,
-        whitelist_syncronizada: true,
+        whitelist_sincronizada: true,
         whitelist_synced_at: syncedAt,
         personagens,
       };
