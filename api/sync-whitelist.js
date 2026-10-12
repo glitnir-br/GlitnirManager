@@ -149,18 +149,23 @@ export default async function handler(req, res) {
         personagens,
       };
       const matches = playersBySteamId.get(entry.steamid) || [];
+      const importedName = entry.label || personagens[0] || '';
 
       if (matches.length) {
-        const { error } = await admin.from('players').update(changes).in('id', matches.map((p) => p.id));
-        if (error) throw error;
-        updated += matches.length;
+        for (const player of matches) {
+          const playerChanges = player.nick === entry.steamid
+            ? { ...changes, nick: importedName }
+            : changes;
+          const { error } = await admin.from('players').update(playerChanges).eq('id', player.id);
+          if (error) throw error;
+          updated += 1;
+        }
       } else {
-        const nick = entry.label || personagens[0] || entry.steamid;
         const { error } = await admin.from('players').insert({
           ...changes,
           server,
           steamid: entry.steamid,
-          nick,
+          nick: importedName,
           status: 'ativo',
           duplicado: false,
         });
