@@ -131,7 +131,6 @@ export default function Players() {
       steamid_desc: unnamedLast((a, b) => String(b.steamid || '').localeCompare(String(a.steamid || ''))),
       newest: unnamedLast((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0)),
       oldest: unnamedLast((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0)),
-      whitelist: unnamedLast((a, b) => Number(b.na_whitelist) - Number(a.na_whitelist) || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR')),
       status: unnamedLast((a, b) => String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR') || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR')),
     };
     const organized = sortOrder === 'manual' ? visible : [...visible].sort(sorters[sortOrder]);
@@ -205,6 +204,7 @@ export default function Players() {
         onOpenChange={setDialogOpen}
         onAdd={(data) => createMutation.mutateAsync(data)}
         server={server}
+        players={players}
       />
     </div>
   );

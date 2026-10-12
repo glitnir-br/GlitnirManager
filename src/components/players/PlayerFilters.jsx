@@ -42,7 +42,6 @@ export default function PlayerFilters({ search, setSearch, statusFilter, setStat
           <SelectItem value="steamid_desc">Steam ID: decrescente</SelectItem>
           <SelectItem value="newest">Cadastro: mais recentes</SelectItem>
           <SelectItem value="oldest">Cadastro: mais antigos</SelectItem>
-          <SelectItem value="whitelist">Whitelist primeiro</SelectItem>
           <SelectItem value="status">Status</SelectItem>
         </SelectContent>
       </Select>
