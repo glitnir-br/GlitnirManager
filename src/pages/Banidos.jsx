@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Search, ShieldBan, Pencil, RefreshCw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { useServer } from '@/lib/ServerContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,7 +22,9 @@ const motivoStyles = {
   OUTRO:     'bg-zinc-500/20 text-zinc-400 border-zinc-500/40',
 };
 
-const initialForm = { personagem: '', steamid: '', motivo: 'OUTRO', observacao: '' };
+const initialForm = { steamid: '', observacao: '' };
+const normalizeSteamId = (value) => value.trim().replace(/^Steam_/i, '');
+const isValidSteamId = (value) => /^\d{17}$/.test(normalizeSteamId(value));
 
 export default function Banidos() {
   const { server, serverLabel } = useServer();
@@ -64,6 +65,16 @@ export default function Banidos() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['banidos', server] }),
   });
 
+  const steamid = normalizeSteamId(form.steamid);
+  const isDuplicate = banidos.some((item) => item.id !== editingId && normalizeSteamId(item.steamid || '') === steamid);
+  const validationMessage = !form.steamid
+    ? ''
+    : !isValidSteamId(form.steamid)
+      ? 'Informe um Steam ID válido com 17 dígitos.'
+      : isDuplicate
+        ? 'Este Steam ID já está cadastrado na lista de banidos deste servidor.'
+        : '';
+
   const syncMutation = useMutation({
     mutationFn: async () => {
       if (!supabase) throw new Error('A sincronização exige conexão com o Supabase.');
@@ -88,7 +99,7 @@ export default function Banidos() {
 
   const openEdit = (b) => {
     setEditingId(b.id);
-    setForm({ personagem: b.personagens?.join(', ') || '', steamid: b.steamid || '', motivo: b.motivo || 'OUTRO', observacao: b.observacao || '' });
+    setForm({ steamid: b.steamid || '', observacao: b.observacao || '' });
     setDialogOpen(true);
   };
 
@@ -146,7 +157,7 @@ export default function Banidos() {
       <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 flex items-center gap-3">
         <ShieldBan className="w-4 h-4 text-red-400 shrink-0" />
         <p className="text-sm text-red-300">
-          Players desta lista estão permanentemente banidos da Glitnir. Não devem ser adicionados à whitelist.
+          O banimento é independente da whitelist: não é necessário remover o player da whitelist para registrá-lo como banido.
         </p>
       </div>
 
@@ -169,7 +180,6 @@ export default function Banidos() {
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">#</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Personagem</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Steam ID</TableHead>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Banlist</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Motivo</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Observação</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
@@ -179,7 +189,7 @@ export default function Banidos() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                   Nenhum banimento encontrado
                 </TableCell>
               </TableRow>
@@ -190,15 +200,6 @@ export default function Banidos() {
                   {b.personagens?.length ? b.personagens.join(', ') : <span className="text-muted-foreground italic">Desconhecido</span>}
                 </TableCell>
                 <TableCell className="font-mono text-sm text-muted-foreground">{b.steamid}</TableCell>
-                <TableCell>
-                  {b.banlist_sincronizada ? (
-                    <Badge variant="outline" className={b.na_banlist
-                      ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                      : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'}>
-                      {b.na_banlist ? 'Banido' : 'Fora da lista'}
-                    </Badge>
-                  ) : <span className="text-xs text-muted-foreground">Não sincronizado</span>}
-                </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={motivoStyles[b.motivo] || motivoStyles.OUTRO}>
                     {b.motivo}
@@ -237,29 +238,18 @@ export default function Banidos() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Personagem</Label>
-              <Input value={form.personagem} onChange={(e) => setForm({ ...form, personagem: e.target.value })} className="bg-secondary" placeholder="Ex: Ragnar" />
-            </div>
-            <div className="space-y-2">
               <Label>Steam ID *</Label>
-              <Input value={form.steamid} onChange={(e) => setForm({ ...form, steamid: e.target.value })} className="bg-secondary font-mono" placeholder="76561198..." />
+              <Input
+                value={form.steamid}
+                onChange={(e) => setForm({ ...form, steamid: e.target.value })}
+                className={`font-mono ${validationMessage ? 'border-red-500 bg-red-950 text-red-300 focus-visible:ring-red-500' : 'bg-secondary'}`}
+                placeholder="Ex: 76561198000000000"
+                inputMode="numeric"
+              />
+              {validationMessage && <p className="text-sm text-red-400">{validationMessage}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Motivo *</Label>
-              <Select value={form.motivo} onValueChange={(v) => setForm({ ...form, motivo: v })}>
-                <SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHEAT">CHEAT</SelectItem>
-                  <SelectItem value="GROSSEIRO">GROSSEIRO</SelectItem>
-                  <SelectItem value="ASSEDIO">ASSÉDIO</SelectItem>
-                  <SelectItem value="TOXICO">TÓXICO</SelectItem>
-                  <SelectItem value="GOLPE">GOLPE</SelectItem>
-                  <SelectItem value="OUTRO">OUTRO</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Observação</Label>
+              <Label>Observações</Label>
               <Textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} className="bg-secondary" placeholder="Detalhes do banimento..." rows={3} />
             </div>
           </div>
@@ -267,11 +257,13 @@ export default function Banidos() {
             <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingId(null); setForm(initialForm); }}>Cancelar</Button>
             <Button
               onClick={() => {
-                const { personagem, ...data } = form;
-                const payload = { ...data, nick: '', personagens: personagem.split(',').map((name) => name.trim()).filter(Boolean) };
+                if (validationMessage || !isValidSteamId(form.steamid)) return;
+                const payload = editingId
+                  ? { steamid, observacao: form.observacao.trim() }
+                  : { steamid, observacao: form.observacao.trim(), nick: '', personagens: [], motivo: 'OUTRO' };
                 editingId ? updateMutation.mutate({ id: editingId, data: payload }) : createMutation.mutate(payload);
               }}
-              disabled={!form.steamid}
+              disabled={!form.steamid || Boolean(validationMessage) || createMutation.isPending || updateMutation.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
               {editingId ? 'Salvar' : 'Banir'}
