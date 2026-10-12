@@ -6,7 +6,6 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { AdminAuthProvider } from '@/lib/AdminAuthContext';
 import { FinancialPasswordProvider } from '@/lib/FinancialPasswordContext';
-import { SessionProvider } from '@/lib/SessionContext';
 import { ServerProvider } from '@/lib/ServerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginScreen from '@/components/LoginScreen';
@@ -89,7 +88,6 @@ function App() {
     <div className="notranslate" translate="no">
     <DeleteConfirmationProvider>
     <AuthProvider>
-      <SessionProvider>
         <ServerProvider>
         <AdminAuthProvider>
           <FinancialPasswordProvider>
@@ -102,7 +100,6 @@ function App() {
           </FinancialPasswordProvider>
         </AdminAuthProvider>
         </ServerProvider>
-      </SessionProvider>
     </AuthProvider>
     </DeleteConfirmationProvider>
     </div>
