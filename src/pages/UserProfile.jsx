@@ -1,99 +1,32 @@
-import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { User, Mail, Shield, Calendar, LogOut } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Bell, Calendar, KeyRound, Lock, LogOut, Save, Shield } from 'lucide-react';
 
-const ROLE_LABELS = {
-  adm_principal: { label: 'ADM Principal', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40' },
-  administrador: { label: 'Admin',         color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
-  financeiro:    { label: 'Financeiro',    color: 'bg-green-500/20 text-green-400 border-green-500/40' },
-  visitante:     { label: 'Visitante',     color: 'bg-muted text-muted-foreground border-border' },
-  pendente:      { label: 'Pendente',      color: 'bg-orange-500/20 text-orange-400 border-orange-500/40' },
-  bloqueado:     { label: 'Bloqueado',     color: 'bg-red-500/20 text-red-400 border-red-500/40' },
-};
+import { base44, supabase } from '@/api/dbClient';
+import TwoFactorAuth from '@/components/TwoFactorAuth';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/lib/AuthContext';
+
+const ROLE_LABELS = { adm_principal: 'ADM Principal', administrador: 'Admin', financeiro: 'Financeiro', visitante: 'Visitante' };
 
 export default function UserProfile() {
-  const { user, logout } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, logout, checkAppState } = useAuth();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(user?.full_name || '');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const { data: profile } = useQuery({ queryKey: ['profile', user?.email], enabled: !!user?.email, queryFn: async () => (await base44.entities.UserProfile.filter({ email: user.email }))[0] || null });
+  const { data: activity = [] } = useQuery({ queryKey: ['profile-activity', user?.email], enabled: !!user?.email, queryFn: () => base44.entities.SecurityLog.filter({ user_email: user.email }, '-created_date', 5) });
+  const preferences = useMemo(() => ({ security: true, access: true, ...(profile?.notification_preferences || {}) }), [profile]);
+  const saveProfile = useMutation({ mutationFn: (data) => base44.entities.UserProfile.update(profile.id, data), onSuccess: async () => { queryClient.invalidateQueries({ queryKey: ['profile', user.email] }); await checkAppState(); setMessage('Perfil atualizado.'); } });
+  const updatePassword = async () => { if (!password || password.length < 8) return setMessage('A nova senha deve ter ao menos 8 caracteres.'); if (!supabase) return setMessage('A alteração de senha exige conexão com o Supabase.'); const { error } = await supabase.auth.updateUser({ password }); setMessage(error ? error.message : 'Senha atualizada.'); if (!error) setPassword(''); };
+  const endOtherSessions = async () => { if (!supabase) return setMessage('O encerramento de sessões exige conexão com o Supabase.'); const { error } = await supabase.auth.signOut({ scope: 'others' }); setMessage(error ? error.message : 'As outras sessões foram encerradas.'); };
 
-  const roleInfo = ROLE_LABELS[user?.role] || ROLE_LABELS.usuario_comum;
-
-  const handleLogout = () => {
-    setLoggingOut(true);
-    logout();
-  };
-
-  return (
-    <div className="w-full min-w-0 space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Meu Perfil</h1>
-        <p className="text-muted-foreground text-sm mt-1">Informações da sua conta</p>
-      </div>
-
-      {/* Avatar + info */}
-      <div className="w-full rounded-xl border border-border bg-card p-4 sm:p-6">
-        <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-5 sm:text-left">
-          <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center text-2xl font-bold text-primary">
-            {user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-foreground">{user?.full_name || 'Usuário'}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <Mail className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="min-w-0 break-all text-sm text-muted-foreground">{user?.email}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Detalhes */}
-      <div className="w-full divide-y divide-border rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-3">
-            <Shield className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Cargo</span>
-          </div>
-          <Badge variant="outline" className={roleInfo.color}>{roleInfo.label}</Badge>
-        </div>
-
-        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-3">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Status</span>
-          </div>
-          <Badge variant="outline" className={
-            user?.status === 'ativo' ? 'bg-green-500/20 text-green-400 border-green-500/40' :
-            user?.status === 'bloqueado' ? 'bg-red-500/20 text-red-400 border-red-500/40' :
-            'bg-muted text-muted-foreground'
-          }>
-            {user?.status === 'ativo' ? 'Ativo' : user?.status === 'bloqueado' ? 'Bloqueado' : user?.status || 'Pendente'}
-          </Badge>
-        </div>
-
-        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Membro desde</span>
-          </div>
-          <span className="text-sm text-foreground">
-            {user?.created_date ? format(new Date(user.created_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : '—'}
-          </span>
-        </div>
-      </div>
-
-      {/* Logout */}
-      <Button
-        variant="destructive"
-        onClick={handleLogout}
-        disabled={loggingOut}
-        className="w-full"
-      >
-        <LogOut className="w-4 h-4 mr-2" />
-        {loggingOut ? 'Saindo...' : 'Sair da Conta'}
-      </Button>
-    </div>
-  );
+  return <div className="w-full min-w-0 space-y-6"><div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Meu Perfil</h1><p className="mt-1 text-sm text-muted-foreground">Conta, segurança e preferências pessoais.</p></div>{message && <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">{message}</p>}<Card className="border-border bg-card p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-2xl font-bold text-primary">{user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}</div><div className="min-w-0 flex-1"><h2 className="text-xl font-bold text-foreground">{user?.full_name || 'Usuário'}</h2><p className="break-all text-sm text-muted-foreground">{user?.email}</p></div><Badge variant="outline" className="w-fit">{ROLE_LABELS[user?.role] || user?.role || 'Pendente'}</Badge></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(event) => setName(event.target.value)} className="bg-secondary" /></div><div className="flex items-end"><Button disabled={!profile || saveProfile.isPending} onClick={() => saveProfile.mutate({ full_name: name.trim() })}><Save className="mr-2 h-4 w-4" />Salvar dados</Button></div></div><p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Calendar className="h-4 w-4" />Membro desde {user?.created_date ? format(new Date(user.created_date), 'dd/MM/yyyy') : '-'}</p></Card><TwoFactorAuth /><div className="grid gap-6 lg:grid-cols-2"><Card className="space-y-4 border-border bg-card p-5"><div className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary" /><h2 className="font-semibold text-foreground">Senha e sessões</h2></div><div className="space-y-2"><Label>Nova senha</Label><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 8 caracteres" className="bg-secondary" /></div><Button variant="outline" onClick={updatePassword}>Alterar senha</Button><div className="border-t border-border pt-4"><p className="mb-2 text-sm text-muted-foreground">Sessão atual: {user?.email}</p><Button variant="outline" onClick={endOtherSessions}><Lock className="mr-2 h-4 w-4" />Encerrar outras sessões</Button></div></Card><Card className="space-y-4 border-border bg-card p-5"><div className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary" /><h2 className="font-semibold text-foreground">Notificações</h2></div>{[['security', 'Alertas de segurança'], ['access', 'Alterações de acesso']].map(([key, label]) => <div key={key} className="flex items-center justify-between"><span className="text-sm text-foreground">{label}</span><Switch checked={!!preferences[key]} disabled={!profile} onCheckedChange={(checked) => saveProfile.mutate({ notification_preferences: { ...preferences, [key]: checked } })} /></div>)}</Card></div><Card className="border-border bg-card p-5"><div className="mb-4 flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /><h2 className="font-semibold text-foreground">Atividade recente</h2></div>{!activity.length ? <p className="text-sm text-muted-foreground">Nenhuma atividade registrada.</p> : <div className="space-y-2">{activity.map((item) => <div key={item.id} className="flex flex-col gap-1 border-b border-border pb-2 text-sm last:border-0"><span className="text-foreground">{item.action}</span><span className="text-xs text-muted-foreground">{item.created_date ? format(new Date(item.created_date), 'dd/MM/yyyy HH:mm') : '-'}</span></div>)}</div>}</Card><Button variant="destructive" onClick={() => logout()}><LogOut className="mr-2 h-4 w-4" />Sair da conta</Button></div>;
 }
