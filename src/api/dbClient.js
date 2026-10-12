@@ -199,6 +199,23 @@ const createEntityManager = (entityName) => {
       return true;
     },
 
+    bulkDelete: async (criteria = {}) => {
+      if (supabase) {
+        let query = supabase.from(tableName).delete();
+        Object.entries(criteria).forEach(([key, value]) => {
+          query = query.eq(key, value);
+        });
+        const { error } = await query;
+        if (error) throw new Error(`Falha ao apagar em ${tableName}: ${error.message}`);
+        return true;
+      }
+
+      const items = getLocalStorage(entityName);
+      const remaining = items.filter((item) => !Object.entries(criteria).every(([key, value]) => item[key] === value));
+      setLocalStorage(entityName, remaining);
+      return true;
+    },
+
     subscribe: (onChange) => {
       if (typeof onChange !== 'function' || !supabase) {
         return () => {};

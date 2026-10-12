@@ -1,141 +1,28 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { Coins, History, Plus, Trash2 } from 'lucide-react';
+
 import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Coins } from 'lucide-react';
-import { useServer } from '@/lib/ServerContext';
+import { useAuth } from '@/lib/AuthContext';
+
+const SERVERS = [{ value: 'server_1', label: 'Server 1' }, { value: 'server_2', label: 'Server 2' }];
 
 export default function GcTabelaEditor() {
-  const { server } = useServer();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [newReais, setNewReais] = useState('');
-  const [newGc, setNewGc] = useState('');
+  const [newValues, setNewValues] = useState({ server_1: { reais: '', gc: '' }, server_2: { reais: '', gc: '' } });
+  const { data: table = [], isLoading } = useQuery({ queryKey: ['gcTabela', 'all'], queryFn: () => base44.entities.GcTabela.list('ordem') });
+  const { data: logs = [] } = useQuery({ queryKey: ['security-logs', 'gc-table'], queryFn: () => base44.entities.SecurityLog.list('-timestamp', 100) });
+  const log = (action, details) => base44.entities.SecurityLog.create({ action, user_email: user.email, performed_by: user.email, details, timestamp: new Date().toISOString() });
+  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ['gcTabela'] }); queryClient.invalidateQueries({ queryKey: ['security-logs', 'gc-table'] }); };
+  const createMutation = useMutation({ mutationFn: async ({ server, reais, gc }) => { const rows = table.filter((row) => row.server === server); const item = await base44.entities.GcTabela.create({ server, reais: Number(reais), gc: Number(gc), ordem: rows.length + 1 }); await log('gc_table_create', `${server}: R$ ${reais} = ${gc} Moeda Glitnir`); return item; }, onSuccess: invalidate });
+  const updateMutation = useMutation({ mutationFn: async ({ item, field, value }) => { const previous = item[field]; await base44.entities.GcTabela.update(item.id, { [field]: Number(value) || 0 }); await log('gc_table_update', `${item.server}: ${field} alterado de ${previous} para ${value}`); }, onSuccess: invalidate });
+  const deleteMutation = useMutation({ mutationFn: async (item) => { await base44.entities.GcTabela.delete(item.id); await log('gc_table_delete', `${item.server}: R$ ${item.reais} = ${item.gc} Moeda Glitnir removido`); }, onSuccess: invalidate });
+  const history = useMemo(() => logs.filter((item) => item.action?.startsWith('gc_table_')).slice(0, 10), [logs]);
+  if (isLoading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
 
-  const { data: tabela = [], isLoading } = useQuery({
-    queryKey: ['gcTabela', server],
-    queryFn: () => base44.entities.GcTabela.filter({ server }, 'ordem'),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.GcTabela.create({ ...data, server }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gcTabela', server] });
-      setNewReais('');
-      setNewGc('');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.GcTabela.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela', server] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.GcTabela.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela', server] }),
-  });
-
-  const handleAdd = () => {
-    if (!newReais || !newGc) return;
-    createMutation.mutate({
-      reais: parseFloat(newReais),
-      gc: parseFloat(newGc),
-      ordem: tabela.length + 1,
-    });
-  };
-
-  const handleUpdate = (item, field, value) => {
-    updateMutation.mutate({ id: item.id, data: { ...item, [field]: parseFloat(value) || 0 } });
-  };
-
-  if (isLoading) return <div className="text-muted-foreground text-sm">Carregando...</div>;
-
-  return (
-    <div className="w-full space-y-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Coins className="w-4 h-4 text-primary" />
-        <h3 className="text-base font-semibold text-foreground">Tabela de GC (Moedas Glitnir)</h3>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Edite os valores exibidos na página de Doações/GC. Alterações são salvas ao sair do campo.
-      </p>
-
-      <div className="w-full overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-secondary/50 border-b border-border">
-              <th className="text-left px-4 py-2 text-muted-foreground font-medium">Reais (R$)</th>
-              <th className="text-left px-4 py-2 text-muted-foreground font-medium">GC</th>
-              <th className="w-12 px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {tabela.length === 0 && (
-              <tr>
-                <td colSpan={3} className="text-center py-6 text-muted-foreground">
-                  Nenhum item. Adicione abaixo.
-                </td>
-              </tr>
-            )}
-            {tabela.map((item) => (
-              <tr key={item.id} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
-                <td className="px-4 py-2">
-                  <Input
-                    type="number"
-                    defaultValue={item.reais}
-                    onBlur={(e) => handleUpdate(item, 'reais', e.target.value)}
-                    className="h-8 w-full bg-secondary font-mono"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <Input
-                    type="number"
-                    defaultValue={item.gc}
-                    onBlur={(e) => handleUpdate(item, 'gc', e.target.value)}
-                    className="h-8 w-full bg-secondary font-mono"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => deleteMutation.mutate(item.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Adicionar novo */}
-      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
-        <Input
-          type="number"
-          placeholder="R$ valor"
-          value={newReais}
-          onChange={(e) => setNewReais(e.target.value)}
-          className="h-9 w-full bg-secondary font-mono"
-        />
-        <Input
-          type="number"
-          placeholder="GC"
-          value={newGc}
-          onChange={(e) => setNewGc(e.target.value)}
-          className="h-9 w-full bg-secondary font-mono"
-        />
-        <Button
-          onClick={handleAdd}
-          disabled={!newReais || !newGc || createMutation.isPending}
-          className="h-9 w-full bg-primary hover:bg-primary/90 sm:w-auto"
-        >
-          <Plus className="w-4 h-4 mr-1" /> Adicionar
-        </Button>
-      </div>
-    </div>
-  );
+  return <div className="space-y-8"><div><div className="mb-1 flex items-center gap-2"><Coins className="h-4 w-4 text-primary" /><h3 className="text-base font-semibold text-foreground">Tabela de Moeda Glitnir</h3></div><p className="text-sm text-muted-foreground">As duas tabelas são exibidas juntas para evitar o filtro global de servidor.</p></div><div className="grid grid-cols-1 gap-6 xl:grid-cols-2">{SERVERS.map((server) => { const rows = table.filter((item) => item.server === server.value).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)); const values = newValues[server.value]; return <div key={server.value} className="rounded-xl border border-border p-4"><h4 className="mb-3 font-semibold text-foreground">{server.label}</h4><div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead><tr className="border-b border-border bg-secondary/50"><th className="px-3 py-2 text-left text-muted-foreground">Valor</th><th className="px-3 py-2 text-left text-muted-foreground">Moeda Glitnir</th><th /></tr></thead><tbody>{!rows.length ? <tr><td colSpan={3} className="px-3 py-5 text-center text-muted-foreground">Nenhum valor cadastrado.</td></tr> : rows.map((item) => <tr key={item.id} className="border-b border-border/50 last:border-0"><td className="p-2"><Input type="number" defaultValue={item.reais} onBlur={(event) => event.target.value !== String(item.reais) && updateMutation.mutate({ item, field: 'reais', value: event.target.value })} className="h-8 bg-secondary font-mono" /></td><td className="p-2"><Input type="number" defaultValue={item.gc} onBlur={(event) => event.target.value !== String(item.gc) && updateMutation.mutate({ item, field: 'gc', value: event.target.value })} className="h-8 bg-secondary font-mono" /></td><td className="p-2"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(item)}><Trash2 className="h-4 w-4 text-red-400" /></Button></td></tr>)}</tbody></table></div><div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2"><Input type="number" value={values.reais} onChange={(event) => setNewValues((current) => ({ ...current, [server.value]: { ...current[server.value], reais: event.target.value } }))} placeholder="Valor R$" className="bg-secondary" /><Input type="number" value={values.gc} onChange={(event) => setNewValues((current) => ({ ...current, [server.value]: { ...current[server.value], gc: event.target.value } }))} placeholder="Moeda" className="bg-secondary" /><Button disabled={!values.reais || !values.gc || createMutation.isPending} onClick={() => { createMutation.mutate({ server: server.value, ...values }); setNewValues((current) => ({ ...current, [server.value]: { reais: '', gc: '' } })); }}><Plus className="h-4 w-4" /></Button></div></div>; })}</div><div className="rounded-xl border border-border bg-secondary/20 p-4"><div className="mb-3 flex items-center gap-2"><History className="h-4 w-4 text-primary" /><h4 className="font-semibold text-foreground">Histórico de alterações</h4></div>{!history.length ? <p className="text-sm text-muted-foreground">Nenhuma alteração registrada ainda.</p> : <div className="space-y-2">{history.map((item) => <div key={item.id} className="border-b border-border/60 pb-2 text-sm last:border-0"><div className="text-foreground">{item.details}</div><div className="text-xs text-muted-foreground">{item.performed_by} · {item.timestamp ? format(new Date(item.timestamp), 'dd/MM/yyyy HH:mm') : '-'}</div></div>)}</div>}</div></div>;
 }
