@@ -262,7 +262,7 @@ export default function Dashboard() {
       <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5">
         <div className="mb-4 flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-400" /><h2 className="font-semibold text-foreground">Pendências</h2></div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <PendingItem label="Moeda Glitnir não enviada" value={pendingDonations.length} />
+          <PendingItem label="Doação não enviada" value={pendingDonations.length} />
           <PendingItem label="Players sem personagem" value={playersWithoutCharacter.length} />
           <PendingItem label="Players sem guilda" value={playersWithoutGuild.length} />
         </div>
