@@ -115,6 +115,15 @@ export default async function handler(req, res) {
       }
     }
 
+    if (steamids.length > 0) {
+      const { error: playerStatusError } = await admin
+        .from('players')
+        .update({ status: 'banido' })
+        .eq('server', server)
+        .in('steamid', steamids);
+      if (playerStatusError) throw playerStatusError;
+    }
+
     return send(res, 200, { server, banned: steamids.length, created, updated, withoutCharacter, syncedAt });
   } catch (error) {
     console.error('Falha ao sincronizar lista de banidos:', error);

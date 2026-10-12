@@ -85,7 +85,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder, ca
                       }
 
                       const rowStyle = {};
-                      if (player.duplicado) {
+                      if (player.duplicado || player.status === 'banido') {
                         rowStyle.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         rowStyle.borderLeft = '4px solid #ef4444';
                       } else if (player.cor) {

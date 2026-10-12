@@ -41,19 +41,35 @@ export default function Banidos() {
     queryFn: () => base44.entities.Banido.filter({ server }, '-created_date'),
   });
 
+  const markPlayerAsBanned = async (steamidToBan) => {
+    const players = await base44.entities.Player.filter({ server });
+    const matches = players.filter((player) => normalizeSteamId(player.steamid || '') === normalizeSteamId(steamidToBan));
+    await Promise.all(matches.map((player) => base44.entities.Player.update(player.id, { status: 'banido' })));
+  };
+
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Banido.create({ ...data, server }),
+    mutationFn: async (data) => {
+      const banido = await base44.entities.Banido.create({ ...data, server });
+      await markPlayerAsBanned(data.steamid);
+      return banido;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banidos', server] });
+      queryClient.invalidateQueries({ queryKey: ['players', server] });
       setDialogOpen(false);
       setForm(initialForm);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Banido.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      const banido = await base44.entities.Banido.update(id, data);
+      await markPlayerAsBanned(data.steamid);
+      return banido;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banidos', server] });
+      queryClient.invalidateQueries({ queryKey: ['players', server] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(initialForm);
