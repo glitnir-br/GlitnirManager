@@ -34,6 +34,8 @@ export default function Banidos() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [syncMessage, setSyncMessage] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
   const queryClient = useQueryClient();
 
   const { data: banidos = [], isLoading } = useQuery({
@@ -133,6 +135,8 @@ export default function Banidos() {
     b.steamid?.includes(search) ||
     b.motivo?.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   if (isLoading) {
     return (
@@ -217,9 +221,9 @@ export default function Banidos() {
                   Nenhum banimento encontrado
                 </TableCell>
               </TableRow>
-            ) : filtered.map((b, i) => (
+            ) : paginated.map((b, i) => (
               <TableRow key={b.id} className="hover:bg-red-500/5 transition-colors border-l-2 border-red-500/40">
-                <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
+                <TableCell className="text-muted-foreground text-sm">{(page - 1) * pageSize + i + 1}</TableCell>
                 <TableCell className="font-medium text-foreground">
                   {b.personagens?.length ? b.personagens.join(', ') : <span className="text-muted-foreground italic">Desconhecido</span>}
                 </TableCell>
@@ -250,6 +254,7 @@ export default function Banidos() {
           </TableBody>
         </Table>
       </div>
+      {filtered.length > pageSize && <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Página {page} de {totalPages} · {filtered.length} banimentos</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Anterior</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Próxima</Button></div></div>}
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setEditingId(null); setForm(initialForm); } }}>

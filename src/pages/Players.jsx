@@ -27,6 +27,8 @@ export default function Players() {
   const [sortOrder, setSortOrder] = useState('character_asc');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   const queryClient = useQueryClient();
 
@@ -143,6 +145,8 @@ export default function Players() {
     const updates = reorderedList.map((p, idx) => ({ id: p.id, ordem: idx }));
     reorderMutation.mutate(updates);
   };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedPlayers = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   if (isLoading) {
     return (
@@ -192,12 +196,13 @@ export default function Players() {
       />
 
       <PlayerTable
-        players={filtered}
+        players={paginatedPlayers}
         onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
         onDelete={(id) => deleteMutation.mutateAsync(id)}
         onReorder={handleReorder}
         canReorder={sortOrder === 'manual'}
       />
+      {filtered.length > pageSize && <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Página {page} de {totalPages} · {filtered.length} players</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Anterior</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Próxima</Button></div></div>}
 
       <AddPlayerDialog
         open={dialogOpen}

@@ -90,6 +90,8 @@ export default function Financas() {
   const [filterGc, setFilterGc] = useState('');
   const [filterEnvio, setFilterEnvio] = useState('todos');
   const [filterData, setFilterData] = useState('todos');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   const { data: gcTabela = [] } = useQuery({
     queryKey: ['gcTabela', 'global'],
@@ -268,12 +270,15 @@ export default function Financas() {
   });
 
   const hasFilters = filterPlayer || filterValor || filterGc || filterEnvio !== 'todos' || filterData !== 'todos';
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const clearFilters = () => {
     setFilterPlayer('');
     setFilterValor('');
     setFilterGc('');
     setFilterEnvio('todos');
     setFilterData('todos');
+    setPage(1);
   };
 
   if (playersLoading || financesLoading) {
@@ -395,13 +400,13 @@ export default function Financas() {
               <TableBody>
                 {!filtered.length ? (
                   <TableRow><TableCell colSpan={9} className="py-12 text-center text-muted-foreground">Nenhuma doação encontrada</TableCell></TableRow>
-                ) : filtered.map((finance) => (
+                ) : paginated.map((finance) => (
                   <TableRow key={finance.id} className="hover:bg-secondary/30">
                     <TableCell className="text-muted-foreground">{formatDate(finance.data || finance.created_date)}</TableCell>
                     <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || (!finance.player_id ? <span className="text-yellow-400">Aguardando vínculo</span> : '-')}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{finance.steamid || '-'}</TableCell>
                     <TableCell className="max-w-56 truncate text-muted-foreground" title={finance.observacao || ''}>{finance.observacao || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">{finance.server === 'server_1' ? 'Server 1' : finance.server === 'server_2' ? 'Server 2' : '-'}</TableCell>
+                    <TableCell>{finance.server === 'server_1' ? <span className="rounded-full border border-blue-500/40 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300">Server 1</span> : finance.server === 'server_2' ? <span className="rounded-full border border-violet-500/40 bg-violet-500/15 px-2 py-1 text-xs font-semibold text-violet-300">Server 2</span> : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="font-mono font-semibold text-green-400">R$ {formatMoney(finance.valor)}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{finance.gc || '-'}</TableCell>
                     <TableCell>
@@ -432,6 +437,7 @@ export default function Financas() {
               </TableBody>
             </Table>
           </div>
+          {filtered.length > pageSize && <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Página {page} de {totalPages} · {filtered.length} doações</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Anterior</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Próxima</Button></div></div>}
 
           <Dialog open={dialogOpen} onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}>
             <DialogContent className="max-w-md border-border bg-card">
