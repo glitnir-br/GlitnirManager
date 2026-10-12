@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/dbClient';
+import { base44, supabase } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Search, ShieldBan, Pencil, Download } from 'lucide-react';
+import { Plus, Trash2, Search, ShieldBan, Pencil, Download, RefreshCw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { useServer } from '@/lib/ServerContext';
+import { useAuth } from '@/lib/AuthContext';
 
 const motivoStyles = {
   CHEAT:     'bg-red-500/20 text-red-400 border-red-500/40',
@@ -22,14 +23,16 @@ const motivoStyles = {
   OUTRO:     'bg-zinc-500/20 text-zinc-400 border-zinc-500/40',
 };
 
-const initialForm = { nick: '', steamid: '', motivo: 'OUTRO', observacao: '' };
+const initialForm = { personagem: '', steamid: '', motivo: 'OUTRO', observacao: '' };
 
 export default function Banidos() {
   const { server, serverLabel } = useServer();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
+  const [syncMessage, setSyncMessage] = useState('');
   const queryClient = useQueryClient();
 
   const { data: banidos = [], isLoading } = useQuery({
@@ -61,15 +64,37 @@ export default function Banidos() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['banidos', server] }),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      if (!supabase) throw new Error('A sincronização exige conexão com o Supabase.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+      const response = await fetch('/api/sync-banlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ server }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao sincronizar a lista de banidos.');
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['banidos', server] });
+      setSyncMessage(`${result.banned} banidos no servidor · ${result.created} novos · ${result.withoutCharacter} sem personagem`);
+    },
+    onError: (error) => setSyncMessage(error.message),
+  });
+
   const openEdit = (b) => {
     setEditingId(b.id);
-    setForm({ nick: b.nick || '', steamid: b.steamid || '', motivo: b.motivo || 'OUTRO', observacao: b.observacao || '' });
+    setForm({ personagem: b.personagens?.join(', ') || '', steamid: b.steamid || '', motivo: b.motivo || 'OUTRO', observacao: b.observacao || '' });
     setDialogOpen(true);
   };
 
   const filtered = banidos.filter(b =>
     !search ||
-    b.nick?.toLowerCase().includes(search.toLowerCase()) ||
+    b.personagens?.some((name) => name.toLowerCase().includes(search.toLowerCase())) ||
     b.steamid?.includes(search) ||
     b.motivo?.toLowerCase().includes(search.toLowerCase())
   );
@@ -97,13 +122,19 @@ export default function Banidos() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {['adm_principal', 'administrador'].includes(user?.role) && (
+            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar banidos'}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => {
               const content = banidos
-                .filter(b => b.nick || b.steamid)
-                .map(b => `${b.nick || ''} ${b.steamid || ''}`.trim())
+                .filter(b => b.personagens?.length || b.steamid)
+                .map(b => `${b.personagens?.join(', ') || ''} ${b.steamid || ''}`.trim())
                 .join('\n');
               const blob = new Blob([content], { type: 'text/plain' });
               const url = URL.createObjectURL(blob);
@@ -115,7 +146,7 @@ export default function Banidos() {
             }}
           >
             <Download className="w-4 h-4 mr-2" />
-            Nicks + SteamIDs
+            Personagens + SteamIDs
           </Button>
           <Button onClick={() => setDialogOpen(true)} className="bg-destructive hover:bg-destructive/90">
             <Plus className="w-4 h-4 mr-2" />
@@ -123,6 +154,12 @@ export default function Banidos() {
           </Button>
         </div>
       </div>
+
+      {syncMessage && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${syncMutation.isError ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-green-500/30 bg-green-500/10 text-green-300'}`}>
+          {syncMessage}
+        </div>
+      )}
 
       {/* Aviso */}
       <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 flex items-center gap-3">
@@ -136,7 +173,7 @@ export default function Banidos() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar nick, steamid ou motivo..."
+          placeholder="Buscar personagem, Steam ID ou motivo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10 bg-secondary border-border"
@@ -149,8 +186,9 @@ export default function Banidos() {
           <TableHeader>
             <TableRow className="bg-red-500/5 hover:bg-red-500/5">
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">#</TableHead>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Nick</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Personagem</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Steam ID</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Banlist</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Motivo</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Observação</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
@@ -160,7 +198,7 @@ export default function Banidos() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   Nenhum banimento encontrado
                 </TableCell>
               </TableRow>
@@ -168,9 +206,18 @@ export default function Banidos() {
               <TableRow key={b.id} className="hover:bg-red-500/5 transition-colors border-l-2 border-red-500/40">
                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                 <TableCell className="font-medium text-foreground">
-                  {b.nick || <span className="text-muted-foreground italic">Desconhecido</span>}
+                  {b.personagens?.length ? b.personagens.join(', ') : <span className="text-muted-foreground italic">Desconhecido</span>}
                 </TableCell>
                 <TableCell className="font-mono text-sm text-muted-foreground">{b.steamid}</TableCell>
+                <TableCell>
+                  {b.banlist_sincronizada ? (
+                    <Badge variant="outline" className={b.na_banlist
+                      ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                      : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'}>
+                      {b.na_banlist ? 'Banido' : 'Fora da lista'}
+                    </Badge>
+                  ) : <span className="text-xs text-muted-foreground">Não sincronizado</span>}
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={motivoStyles[b.motivo] || motivoStyles.OUTRO}>
                     {b.motivo}
@@ -209,8 +256,8 @@ export default function Banidos() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Nick</Label>
-              <Input value={form.nick} onChange={(e) => setForm({ ...form, nick: e.target.value })} className="bg-secondary" placeholder="Ex: xGamer123" />
+              <Label>Personagem</Label>
+              <Input value={form.personagem} onChange={(e) => setForm({ ...form, personagem: e.target.value })} className="bg-secondary" placeholder="Ex: Ragnar" />
             </div>
             <div className="space-y-2">
               <Label>Steam ID *</Label>
@@ -238,7 +285,11 @@ export default function Banidos() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingId(null); setForm(initialForm); }}>Cancelar</Button>
             <Button
-              onClick={() => editingId ? updateMutation.mutate({ id: editingId, data: form }) : createMutation.mutate(form)}
+              onClick={() => {
+                const { personagem, ...data } = form;
+                const payload = { ...data, nick: '', personagens: personagem.split(',').map((name) => name.trim()).filter(Boolean) };
+                editingId ? updateMutation.mutate({ id: editingId, data: payload }) : createMutation.mutate(payload);
+              }}
               disabled={!form.steamid}
               className="bg-destructive hover:bg-destructive/90"
             >
