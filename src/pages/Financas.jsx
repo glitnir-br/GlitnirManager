@@ -112,7 +112,8 @@ export default function Financas() {
   });
 
   const sortedPlayers = useMemo(
-    () => [...players].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
+    () => [...new Map(players.map((player) => [player.steamid || player.id, player])).values()]
+      .sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
     [players],
   );
   const playerServers = useMemo(() => new Map(players.reduce((groups, player) => {
@@ -195,7 +196,7 @@ export default function Financas() {
       .filter((item) => item === 'server_1' || item === 'server_2'))];
     setForm((current) => ({
       ...current,
-      player_id: player.id,
+      player_id: serversForSteamId.length === 1 ? player.id : '',
       steamid: player.steamid || '',
       personagem: playerName(player) === 'Sem personagem' ? '' : playerName(player),
       server: serversForSteamId.length === 1 ? serversForSteamId[0] : '',
