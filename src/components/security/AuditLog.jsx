@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/dbClient';
 import { useAuth } from '@/lib/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Shield } from 'lucide-react';
+import { Eye, Shield } from 'lucide-react';
 
 const ACTION_LABELS = {
   user_approved: 'Usuário Aprovado',
@@ -52,6 +54,7 @@ const formatDetails = (details) => {
 
 export default function AuditLog() {
   const { user } = useAuth();
+  const [selectedLog, setSelectedLog] = useState(null);
 
   const { data: logs = [] } = useQuery({
     queryKey: ['security-logs'],
@@ -79,6 +82,7 @@ export default function AuditLog() {
               <TableHead className="text-xs uppercase text-muted-foreground">Usuário</TableHead>
               <TableHead className="text-xs uppercase text-muted-foreground">Realizado Por</TableHead>
               <TableHead className="text-xs uppercase text-muted-foreground">Detalhes</TableHead>
+              <TableHead className="w-28" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -94,14 +98,21 @@ export default function AuditLog() {
                 </TableCell>
                 <TableCell className="text-sm text-foreground font-mono">{log.user_email}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{log.performed_by}</TableCell>
-                <TableCell className="whitespace-normal break-words text-xs text-muted-foreground">
-                  {formatDetails(log.details)}
+                <TableCell className="max-w-64 truncate text-xs text-muted-foreground" title={formatDetails(log.details)}>
+                  {formatDetails(log.details).length > 110 ? `${formatDetails(log.details).slice(0, 110)}…` : formatDetails(log.details)}
                 </TableCell>
+                <TableCell><Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => setSelectedLog(log)}><Eye className="h-3.5 w-3.5" />Ver detalhes</Button></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
+        <DialogContent className="max-w-2xl border-border bg-card">
+          <DialogHeader><DialogTitle>Detalhes da auditoria</DialogTitle></DialogHeader>
+          {selectedLog && <div className="space-y-3 text-sm"><div className="grid gap-2 sm:grid-cols-2"><p><span className="text-muted-foreground">Ação:</span> {ACTION_LABELS[selectedLog.action] || selectedLog.action}</p><p><span className="text-muted-foreground">Usuário:</span> {selectedLog.performed_by || selectedLog.user_email || '-'}</p></div><pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-secondary p-3 font-mono text-xs text-foreground">{formatDetails(selectedLog.details)}</pre></div>}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
