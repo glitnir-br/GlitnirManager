@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const WHITELIST_PATH = '/.config/unity3d/IronGate/Valheim/permittedlist.txt';
+const ADMINLIST_PATH = '/.config/unity3d/IronGate/Valheim/adminlist.txt';
 const CHARACTERS_PATH = '/.config/unity3d/IronGate/Valheim/characters_local';
 const GUILDS_PATH = '/.config/unity3d/IronGate/Valheim/Guilds';
 const ALLOWED_ROLES = new Set(['adm_principal', 'administrador']);
@@ -24,6 +25,10 @@ function parseWhitelist(content) {
     entries.set(id, { steamid: id, label: label || null });
   }
   return [...entries.values()];
+}
+
+function parseSteamIds(content) {
+  return new Set((content || '').split(/\r?\n/).map((line) => line.match(/\d{15,20}/)?.[0]).filter(Boolean));
 }
 
 function parseCharacterFiles(files) {
@@ -153,15 +158,18 @@ export default async function handler(req, res) {
     const requestedObservation = String(req.body?.observacao || '').trim();
     if (requestedSteamId && !/^\d{17}$/.test(requestedSteamId)) return send(res, 400, { error: 'Steam ID inválido.' });
     const encodedWhitelist = encodeURIComponent(WHITELIST_PATH);
+    const encodedAdminlist = encodeURIComponent(ADMINLIST_PATH);
     const encodedCharacters = encodeURIComponent(CHARACTERS_PATH);
     const encodedGuilds = encodeURIComponent(GUILDS_PATH);
-    const [whitelistContent, characterListing, guildListing] = await Promise.all([
+    const [whitelistContent, adminlistContent, characterListing, guildListing] = await Promise.all([
       pterodactylRequest(`/api/client/servers/${serverId}/files/contents?file=${encodedWhitelist}`, 'text'),
+      pterodactylRequest(`/api/client/servers/${serverId}/files/contents?file=${encodedAdminlist}`, 'text'),
       pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodedCharacters}`),
       pterodactylRequest(`/api/client/servers/${serverId}/files/list?directory=${encodedGuilds}`),
     ]);
 
     let whitelist = parseWhitelist(whitelistContent);
+    const adminSteamIds = parseSteamIds(adminlistContent);
     let addedToPterodactyl = false;
     if (requestedSteamId && !whitelist.some((entry) => entry.steamid === requestedSteamId)) {
       const separator = whitelistContent && !whitelistContent.endsWith('\n') ? '\n' : '';
@@ -200,7 +208,7 @@ export default async function handler(req, res) {
 
     const { error: resetError } = await admin
       .from('players')
-      .update({ na_whitelist: false, whitelist_sincronizada: true, whitelist_synced_at: syncedAt })
+      .update({ na_whitelist: false, is_server_admin: false, whitelist_sincronizada: true, whitelist_synced_at: syncedAt, adminlist_synced_at: syncedAt })
       .eq('server', server);
     if (resetError) throw resetError;
 
@@ -217,6 +225,8 @@ export default async function handler(req, res) {
         whitelist_synced_at: syncedAt,
         personagens,
         guilda: parsedGuilds.bySteamId.get(entry.steamid) || '',
+        is_server_admin: adminSteamIds.has(entry.steamid),
+        adminlist_synced_at: syncedAt,
       };
       const matches = playersBySteamId.get(entry.steamid) || [];
       const importedName = '';
@@ -258,6 +268,7 @@ export default async function handler(req, res) {
     return send(res, 200, {
       server,
       whitelist: whitelist.length,
+      admins: adminSteamIds.size,
       created,
       updated,
       withoutCharacter,

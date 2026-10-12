@@ -113,7 +113,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder, ca
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="font-mono text-sm text-muted-foreground">{player.steamid}</TableCell>
+                              <TableCell className="font-mono text-sm text-muted-foreground"><div className="flex items-center gap-2">{player.steamid}{player.is_server_admin && <Badge variant="outline" className="border-amber-500/40 bg-amber-500/15 text-amber-300">ADM</Badge>}</div></TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={statusStyles[player.status] || statusStyles.ativo}>
                                   {player.status || 'ativo'}
