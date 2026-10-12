@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { AdminAuthProvider } from '@/lib/AdminAuthContext';
 import { FinancialPasswordProvider } from '@/lib/FinancialPasswordContext';
 import { SessionProvider } from '@/lib/SessionContext';
+import { ServerProvider } from '@/lib/ServerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginScreen from '@/components/LoginScreen';
 
@@ -93,6 +94,7 @@ function App() {
     <DeleteConfirmationProvider>
     <AuthProvider>
       <SessionProvider>
+        <ServerProvider>
         <AdminAuthProvider>
           <FinancialPasswordProvider>
             <QueryClientProvider client={queryClientInstance}>
@@ -103,6 +105,7 @@ function App() {
             </QueryClientProvider>
           </FinancialPasswordProvider>
         </AdminAuthProvider>
+        </ServerProvider>
       </SessionProvider>
     </AuthProvider>
     </DeleteConfirmationProvider>

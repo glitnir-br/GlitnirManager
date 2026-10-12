@@ -6,6 +6,7 @@ import { Plus, Download } from 'lucide-react';
 import PlayerTable from '@/components/players/PlayerTable';
 import PlayerFilters from '@/components/players/PlayerFilters';
 import AddPlayerDialog from '@/components/players/AddPlayerDialog';
+import { useServer } from '@/lib/ServerContext';
 
 async function checkDuplicates(players, current) {
   const isDuplicate = players.some(
@@ -15,6 +16,7 @@ async function checkDuplicates(players, current) {
 }
 
 export default function Players() {
+  const { server, serverLabel } = useServer();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [guildFilter, setGuildFilter] = useState('all');
@@ -23,14 +25,14 @@ export default function Players() {
   const queryClient = useQueryClient();
 
   const { data: players = [], isLoading } = useQuery({
-    queryKey: ['players'],
-    queryFn: () => base44.entities.Player.list(),
+    queryKey: ['players', server],
+    queryFn: () => base44.entities.Player.filter({ server }),
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const isDup = await checkDuplicates(players, { id: null, ...data });
-      const newPlayer = await base44.entities.Player.create({ ...data, duplicado: isDup });
+      const newPlayer = await base44.entities.Player.create({ ...data, server, duplicado: isDup });
       // Also mark existing players as duplicate if they match
       if (isDup) {
         const matches = players.filter(p => p.nick === data.nick || p.steamid === data.steamid);
@@ -42,7 +44,7 @@ export default function Players() {
       }
       return newPlayer;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });
 
   const updateMutation = useMutation({
@@ -50,17 +52,17 @@ export default function Players() {
       const isDup = await checkDuplicates(players, { id, ...data });
       await base44.entities.Player.update(id, { ...data, duplicado: isDup });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Player.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });
 
   const reorderMutation = useMutation({
     mutationFn: (updates) => base44.entities.Player.bulkUpdate(updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });
 
   const guildas = useMemo(() => {
@@ -106,7 +108,7 @@ export default function Players() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Players</h1>
-          <p className="text-muted-foreground text-sm mt-1">{players.length} jogadores cadastrados</p>
+          <p className="text-muted-foreground text-sm mt-1">{players.length} jogadores cadastrados no {serverLabel}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -175,6 +177,7 @@ export default function Players() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onAdd={(data) => createMutation.mutateAsync(data)}
+        server={server}
       />
     </div>
   );

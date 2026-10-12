@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { useServer } from '@/lib/ServerContext';
 
 const motivoStyles = {
   CHEAT:     'bg-red-500/20 text-red-400 border-red-500/40',
@@ -24,6 +25,7 @@ const motivoStyles = {
 const initialForm = { nick: '', steamid: '', motivo: 'OUTRO', observacao: '' };
 
 export default function Banidos() {
+  const { server, serverLabel } = useServer();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -31,14 +33,14 @@ export default function Banidos() {
   const queryClient = useQueryClient();
 
   const { data: banidos = [], isLoading } = useQuery({
-    queryKey: ['banidos'],
-    queryFn: () => base44.entities.Banido.list('-created_date'),
+    queryKey: ['banidos', server],
+    queryFn: () => base44.entities.Banido.filter({ server }, '-created_date'),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Banido.create(data),
+    mutationFn: (data) => base44.entities.Banido.create({ ...data, server }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['banidos'] });
+      queryClient.invalidateQueries({ queryKey: ['banidos', server] });
       setDialogOpen(false);
       setForm(initialForm);
     },
@@ -47,7 +49,7 @@ export default function Banidos() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Banido.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['banidos'] });
+      queryClient.invalidateQueries({ queryKey: ['banidos', server] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(initialForm);
@@ -56,7 +58,7 @@ export default function Banidos() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Banido.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['banidos'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['banidos', server] }),
   });
 
   const openEdit = (b) => {
@@ -91,7 +93,7 @@ export default function Banidos() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">Lista de Banidos</h1>
-              <p className="text-muted-foreground text-sm mt-0.5">{banidos.length} banimentos registrados</p>
+              <p className="text-muted-foreground text-sm mt-0.5">{banidos.length} banimentos registrados no {serverLabel}</p>
             </div>
           </div>
         </div>

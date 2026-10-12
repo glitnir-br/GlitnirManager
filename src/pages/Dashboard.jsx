@@ -5,33 +5,35 @@ import { DollarSign, Users, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StatCard from '@/components/dashboard/StatCard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
+import { useServer } from '@/lib/ServerContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { server, serverLabel } = useServer();
   const { data: players = [] } = useQuery({
-    queryKey: ['players'],
-    queryFn: () => base44.entities.Player.list(),
+    queryKey: ['players', server],
+    queryFn: () => base44.entities.Player.filter({ server }),
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
 
   const { data: financas = [] } = useQuery({
-    queryKey: ['financas'],
-    queryFn: () => base44.entities.Financa.list(),
+    queryKey: ['financas', server],
+    queryFn: () => base44.entities.Financa.filter({ server }),
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
 
   const { data: compras = [] } = useQuery({
-    queryKey: ['compras'],
-    queryFn: () => base44.entities.Compra.list(),
+    queryKey: ['compras', server],
+    queryFn: () => base44.entities.Compra.filter({ server }),
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
 
   const { data: despesas = [] } = useQuery({
-    queryKey: ['despesas'],
-    queryFn: () => base44.entities.Despesa.list(),
+    queryKey: ['despesas', server],
+    queryFn: () => base44.entities.Despesa.filter({ server }),
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
@@ -46,7 +48,7 @@ export default function Dashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Visão geral do Glitnir Nexus</p>
+        <p className="text-muted-foreground text-sm mt-1">Visão geral do {serverLabel}</p>
       </div>
 
       {/* Stats Grid */}

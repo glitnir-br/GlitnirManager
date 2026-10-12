@@ -11,6 +11,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import FinanceGuardRole from '@/components/FinanceGuardRole';
+import { useServer } from '@/lib/ServerContext';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -21,14 +22,15 @@ function getMonthKey(dateStr, fallbackDate) {
 }
 
 export default function Relatorios() {
+  const { server, serverLabel } = useServer();
   const { user } = useAuth();
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
   const [selectedMonth, setSelectedMonth] = useState('todos');
   const [activeCategories, setActiveCategories] = useState(['financas', 'compras', 'despesas']);
 
-  const { data: financasRaw = [] } = useQuery({ queryKey: ['financas'], queryFn: () => base44.entities.Financa.list() });
-  const { data: comprasRaw = [] } = useQuery({ queryKey: ['compras'], queryFn: () => base44.entities.Compra.list() });
-  const { data: despesasRaw = [] } = useQuery({ queryKey: ['despesas'], queryFn: () => base44.entities.Despesa.list() });
+  const { data: financasRaw = [] } = useQuery({ queryKey: ['financas', server], queryFn: () => base44.entities.Financa.filter({ server }) });
+  const { data: comprasRaw = [] } = useQuery({ queryKey: ['compras', server], queryFn: () => base44.entities.Compra.filter({ server }) });
+  const { data: despesasRaw = [] } = useQuery({ queryKey: ['despesas', server], queryFn: () => base44.entities.Despesa.filter({ server }) });
 
   // Build monthly aggregation
   const monthlyData = useMemo(() => {
@@ -156,7 +158,7 @@ export default function Relatorios() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground text-sm mt-1">Análise financeira mensal</p>
+          <p className="text-muted-foreground text-sm mt-1">Análise financeira mensal do {serverLabel}</p>
         </div>
         <Button onClick={exportToExcel} variant="outline" className="gap-2 border-green-500/40 text-green-400 hover:bg-green-500/10 hover:text-green-300">
           <Download className="w-4 h-4" />

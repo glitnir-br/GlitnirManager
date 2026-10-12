@@ -18,8 +18,10 @@ const formatDate = (dateStr) => {
   return format(parseISO(datePart + 'T12:00:00'), 'dd/MM/yyyy');
 };
 import FinanceGuardRole from '@/components/FinanceGuardRole';
+import { useServer } from '@/lib/ServerContext';
 
 export default function Compras() {
+  const { server } = useServer();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -32,8 +34,8 @@ export default function Compras() {
   const queryClient = useQueryClient();
 
   const { data: comprasRaw = [], isLoading } = useQuery({
-    queryKey: ['compras'],
-    queryFn: () => base44.entities.Compra.list(),
+    queryKey: ['compras', server],
+    queryFn: () => base44.entities.Compra.filter({ server }),
   });
 
   const compras = [...comprasRaw].sort((a, b) => {
@@ -43,9 +45,9 @@ export default function Compras() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Compra.create({ ...data, valor: parseFloat(data.valor) || 0 }),
+    mutationFn: (data) => base44.entities.Compra.create({ ...data, server, valor: parseFloat(data.valor) || 0 }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
+      queryClient.invalidateQueries({ queryKey: ['compras', server] });
       setDialogOpen(false);
       setForm({ data: '', nick: '', produto: '', valor: '', guilda: '' });
     },
@@ -54,7 +56,7 @@ export default function Compras() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Compra.update(id, { ...data, valor: parseFloat(data.valor) || 0 }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
+      queryClient.invalidateQueries({ queryKey: ['compras', server] });
       setDialogOpen(false);
       setEditingId(null);
       setForm({ data: '', nick: '', produto: '', valor: '', guilda: '' });
@@ -63,7 +65,7 @@ export default function Compras() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Compra.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['compras'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['compras', server] }),
   });
 
   const openEdit = (c) => {

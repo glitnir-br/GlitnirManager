@@ -5,6 +5,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Users, UserX, UserCheck, ShieldOff } from 'lucide-react';
+import { useServer } from '@/lib/ServerContext';
 
 function getMonthKey(dateStr) {
   const d = dateStr ? parseISO(dateStr) : null;
@@ -19,8 +20,9 @@ function formatMonthLabel(monthKey) {
 }
 
 export default function PlayerStatsReport({ selectedYear }) {
-  const { data: playersRaw = [] } = useQuery({ queryKey: ['players'], queryFn: () => base44.entities.Player.list() });
-  const { data: banidosRaw = [] } = useQuery({ queryKey: ['banidos'], queryFn: () => base44.entities.Banido.list() });
+  const { server } = useServer();
+  const { data: playersRaw = [] } = useQuery({ queryKey: ['players', server], queryFn: () => base44.entities.Player.filter({ server }) });
+  const { data: banidosRaw = [] } = useQuery({ queryKey: ['banidos', server], queryFn: () => base44.entities.Banido.filter({ server }) });
 
   // Players registered per month
   const monthlyPlayers = useMemo(() => {

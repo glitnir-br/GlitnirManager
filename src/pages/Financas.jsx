@@ -19,8 +19,10 @@ const formatDate = (dateStr) => {
   return format(parseISO(datePart + 'T12:00:00'), 'dd/MM/yyyy');
 };
 import FinanceGuardRole from '@/components/FinanceGuardRole';
+import { useServer } from '@/lib/ServerContext';
 
 export default function Financas() {
+  const { server } = useServer();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -33,8 +35,8 @@ export default function Financas() {
   const queryClient = useQueryClient();
 
   const { data: gcTabela = [] } = useQuery({
-    queryKey: ['gcTabela'],
-    queryFn: () => base44.entities.GcTabela.list('ordem'),
+    queryKey: ['gcTabela', server],
+    queryFn: () => base44.entities.GcTabela.filter({ server }, 'ordem'),
   });
 
   const gcTabelaDisplay = gcTabela.length > 0
@@ -48,8 +50,8 @@ export default function Financas() {
       ];
 
   const { data: financasRaw = [], isLoading } = useQuery({
-    queryKey: ['financas'],
-    queryFn: () => base44.entities.Financa.list(),
+    queryKey: ['financas', server],
+    queryFn: () => base44.entities.Financa.filter({ server }),
   });
 
   const financas = [...financasRaw].sort((a, b) => {
@@ -59,9 +61,9 @@ export default function Financas() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Financa.create({ ...data, valor: parseFloat(data.valor) || 0 }),
+    mutationFn: (data) => base44.entities.Financa.create({ ...data, server, valor: parseFloat(data.valor) || 0 }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financas'] });
+      queryClient.invalidateQueries({ queryKey: ['financas', server] });
       setDialogOpen(false);
       setForm({ data: '', nick: '', valor: '', gc: '', enviado_por: '' });
     },
@@ -70,7 +72,7 @@ export default function Financas() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Financa.update(id, { ...data, valor: parseFloat(data.valor) || 0 }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financas'] });
+      queryClient.invalidateQueries({ queryKey: ['financas', server] });
       setDialogOpen(false);
       setEditingId(null);
       setForm({ data: '', nick: '', valor: '', gc: '', enviado_por: '' });
@@ -79,7 +81,7 @@ export default function Financas() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Financa.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas', server] }),
   });
 
   const openEdit = (f) => {

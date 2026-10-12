@@ -4,21 +4,23 @@ import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Coins } from 'lucide-react';
+import { useServer } from '@/lib/ServerContext';
 
 export default function GcTabelaEditor() {
+  const { server } = useServer();
   const queryClient = useQueryClient();
   const [newReais, setNewReais] = useState('');
   const [newGc, setNewGc] = useState('');
 
   const { data: tabela = [], isLoading } = useQuery({
-    queryKey: ['gcTabela'],
-    queryFn: () => base44.entities.GcTabela.list('ordem'),
+    queryKey: ['gcTabela', server],
+    queryFn: () => base44.entities.GcTabela.filter({ server }, 'ordem'),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.GcTabela.create(data),
+    mutationFn: (data) => base44.entities.GcTabela.create({ ...data, server }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gcTabela'] });
+      queryClient.invalidateQueries({ queryKey: ['gcTabela', server] });
       setNewReais('');
       setNewGc('');
     },
@@ -26,12 +28,12 @@ export default function GcTabelaEditor() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.GcTabela.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela', server] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.GcTabela.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gcTabela', server] }),
   });
 
   const handleAdd = () => {

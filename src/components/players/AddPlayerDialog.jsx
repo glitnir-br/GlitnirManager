@@ -14,7 +14,7 @@ const initialForm = {
   nick: '', steamid: '', status: 'ativo', guilda: '', observacao: '', cor: '',
 };
 
-export default function AddPlayerDialog({ open, onOpenChange, onAdd }) {
+export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [bannedInfo, setBannedInfo] = useState(null);
@@ -23,11 +23,11 @@ export default function AddPlayerDialog({ open, onOpenChange, onAdd }) {
     const steamid = form.steamid.trim();
     if (!steamid || steamid.length < 5) { setBannedInfo(null); return; }
     const timer = setTimeout(async () => {
-      const results = await base44.entities.Banido.filter({ steamid });
+      const results = await base44.entities.Banido.filter({ steamid, server });
       setBannedInfo(results.length > 0 ? results[0] : null);
     }, 400);
     return () => clearTimeout(timer);
-  }, [form.steamid]);
+  }, [form.steamid, server]);
 
   const handleSubmit = async () => {
     if (!form.nick || !form.steamid) return;
