@@ -59,11 +59,13 @@ function parseCharacterFiles(files) {
 function parseGuildMembers(guildFiles) {
   const bySteamId = new Map();
   const conflicts = [];
+  const unmatchedFiles = [];
 
   for (const { name, content } of guildFiles) {
     const guildName = name.replace(/\.ya?ml$/i, '');
     const lines = content.split(/\r?\n/);
     let insideMembers = false;
+    let membersFound = 0;
 
     for (const line of lines) {
       if (/^members\s*:/i.test(line)) {
@@ -73,9 +75,12 @@ function parseGuildMembers(guildFiles) {
       if (insideMembers && /^\S/.test(line) && !/^\s*-/.test(line)) break;
       if (!insideMembers) continue;
 
-      const playerValue = line.match(/^\s*(?:-\s*)?player\s*:\s*["']?(.+?)["']?\s*$/i)?.[1];
-      const steamid = playerValue?.match(/\d{15,20}/)?.[0];
+      // O YamlDotNet pode salvar PlayerReference como escalar
+      // (`player: Steam_123:Nome`) ou como objeto (`player:` + `id:`).
+      const referenceValue = line.match(/^\s*(?:-\s*)?(?:player|id)\s*:\s*["']?(.+?)["']?\s*$/i)?.[1];
+      const steamid = referenceValue?.match(/\d{15,20}/)?.[0];
       if (!steamid) continue;
+      membersFound += 1;
 
       if (bySteamId.has(steamid) && bySteamId.get(steamid) !== guildName) {
         conflicts.push({ steamid, guilds: [bySteamId.get(steamid), guildName] });
@@ -83,9 +88,11 @@ function parseGuildMembers(guildFiles) {
       }
       bySteamId.set(steamid, guildName);
     }
+
+    if (membersFound === 0) unmatchedFiles.push(name);
   }
 
-  return { bySteamId, conflicts };
+  return { bySteamId, conflicts, unmatchedFiles };
 }
 
 async function pterodactylRequest(path, responseType = 'json') {
@@ -236,6 +243,7 @@ export default async function handler(req, res) {
       guildFiles: guildFiles.length,
       guildAssignments: parsedGuilds.bySteamId.size,
       guildConflicts: parsedGuilds.conflicts,
+      unmatchedGuildFiles: parsedGuilds.unmatchedFiles,
       unmatchedCharacterFiles: parsedCharacters.ignored.slice(0, 20),
       syncedAt,
     });
