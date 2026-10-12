@@ -4,6 +4,8 @@ import { LayoutDashboard, Users, DollarSign, ShoppingCart, ShieldBan, X, Trendin
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
+import { useServer, SERVERS } from '@/lib/ServerContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const allNavItems = [
   { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'moderador', 'suporte', 'visitante'] },
@@ -21,6 +23,7 @@ const allNavItems = [
 export default function Sidebar({ open, setOpen }) {
   const location = useLocation();
   const { user } = useAuth();
+  const { server, setServer } = useServer();
   const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   return (
@@ -53,6 +56,17 @@ export default function Sidebar({ open, setOpen }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
+          <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Visualizando servidor</p>
+            <Select value={server} onValueChange={setServer}>
+              <SelectTrigger className="h-9 w-full bg-card font-semibold text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SERVERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const isBanidos = item.path === '/banidos';
