@@ -3,16 +3,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/api/dbClient';
 import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 
 export default function LoginScreen() {
   const { loginWithPassword, navigateToLogin, isLoadingAuth } = useAuth();
   
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +36,13 @@ export default function LoginScreen() {
   const handleQuickFill = (u, p) => {
     setUsername(u);
     setPassword(p);
+  };
+  const handlePasswordRecovery = async () => {
+    const email = username.trim().toLowerCase();
+    if (!email.includes('@')) return setRecoveryMessage('Informe seu e-mail acima para recuperar a senha.');
+    if (!supabase) return setRecoveryMessage('A recuperação exige conexão com o Supabase.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setRecoveryMessage(error ? error.message : 'Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.');
   };
 
   return (
@@ -119,6 +128,8 @@ export default function LoginScreen() {
               <LogIn className="w-4 h-4" />
               {isSubmitting ? 'Entrando...' : 'Entrar no Sistema'}
             </Button>
+            <button type="button" onClick={handlePasswordRecovery} className="w-full text-center text-xs text-primary hover:underline">Esqueci minha senha</button>
+            {recoveryMessage && <p className="text-center text-xs text-muted-foreground">{recoveryMessage}</p>}
           </form>
 
           {/* Cards de Usuário Padrão */}

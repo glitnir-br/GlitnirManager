@@ -62,6 +62,10 @@ const AuthenticatedApp = () => {
     return <UnauthorizedAccessScreen />;
   }
 
+  if (user.must_change_password) {
+    return <UserProfile />;
+  }
+
   // Render the main app
   return (
     <Routes>

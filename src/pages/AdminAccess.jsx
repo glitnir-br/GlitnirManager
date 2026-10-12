@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { CheckCircle2, Search, ShieldCheck, ShieldOff, Trash2, UserPlus, Users, XCircle } from 'lucide-react';
 
-import { base44 } from '@/api/dbClient';
+import { base44, supabase } from '@/api/dbClient';
 import FinancialPasswordProtection from '@/components/FinancialPasswordProtection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -118,13 +118,17 @@ export default function AdminAccess() {
       const normalizedEmail = email.trim().toLowerCase();
       if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) throw new Error('Digite um e-mail válido.');
       if (accessRows.some((row) => row.email?.toLowerCase() === normalizedEmail)) throw new Error('Este e-mail já possui um acesso registrado.');
-      await base44.entities.AccessRequest.create({ email: normalizedEmail, status: 'aprovado', role });
-      await base44.entities.UserProfile.create({ email: normalizedEmail, role: ROLES[role].profileRole, status: 'ativo', approved_by: user.email, approved_date: new Date().toISOString() });
-      await base44.users.inviteUser(normalizedEmail, 'user');
+      if (!supabase) throw new Error('A criação de acesso exige conexão com o Supabase.');
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      const response = await fetch('/api/create-access-user', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: normalizedEmail, role: ROLES[role].profileRole }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao criar acesso.');
+      return result;
       await base44.integrations.Core.SendEmail({ to: normalizedEmail, subject: 'Acesso liberado — Glitnir Manager', body: `Você foi adicionado como ${ROLES[role].label}.` });
       await logAction('access_invite', normalizedEmail, `Acesso criado manualmente como ${ROLES[role].label}.`);
     },
-    onSuccess: () => { invalidate(); setInviteSuccess('Acesso adicionado com sucesso.'); setInviteEmail(''); setInviteRole('visitante'); },
+    onSuccess: (result) => { invalidate(); setInviteSuccess(`Acesso criado. Senha temporária: ${result.temporaryPassword}`); setInviteEmail(''); setInviteRole('visitante'); },
     onError: (error) => setInviteError(error.message),
   });
 
