@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { useServer } from '@/lib/ServerContext';
 
 const CATEGORIES = [
   'Servidor / hospedagem',
@@ -36,7 +35,6 @@ const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { mini
 const expenseDate = (expense) => expense.data ? parseISO(expense.data) : new Date(expense.created_date);
 
 export default function Despesas() {
-  const { server } = useServer();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -47,8 +45,8 @@ export default function Despesas() {
   const [periodFilter, setPeriodFilter] = useState('todos');
 
   const { data: despesasRaw = [], isLoading } = useQuery({
-    queryKey: ['despesas', server],
-    queryFn: () => base44.entities.Despesa.filter({ server }),
+    queryKey: ['despesas', 'all'],
+    queryFn: () => base44.entities.Despesa.list(),
   });
 
   const despesas = useMemo(() => despesasRaw
@@ -83,9 +81,9 @@ export default function Despesas() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Despesa.create({ ...payload(data), data: localToday(), server }),
+    mutationFn: (data) => base44.entities.Despesa.create({ ...payload(data), data: localToday(), server: null }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['despesas', server] });
+      queryClient.invalidateQueries({ queryKey: ['despesas'] });
       closeDialog();
     },
   });
@@ -93,19 +91,19 @@ export default function Despesas() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Despesa.update(id, payload(data)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['despesas', server] });
+      queryClient.invalidateQueries({ queryKey: ['despesas'] });
       closeDialog();
     },
   });
 
   const paymentMutation = useMutation({
     mutationFn: ({ id, paid }) => base44.entities.Despesa.update(id, { status_pagamento: paid ? 'pago' : 'nao_pago' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['despesas', server] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['despesas'] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Despesa.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['despesas', server] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['despesas'] }),
   });
 
   const openEdit = (expense) => {
