@@ -115,6 +115,12 @@ export default function Financas() {
     () => [...players].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
     [players],
   );
+  const playerServers = useMemo(() => new Map(players.reduce((groups, player) => {
+    if (!player.steamid) return groups;
+    if (!groups.has(player.steamid)) groups.set(player.steamid, new Set());
+    if (player.server === 'server_1' || player.server === 'server_2') groups.get(player.steamid).add(player.server);
+    return groups;
+  }, new Map())), [players]);
 
   const { data: financasRaw = [], isLoading: financesLoading } = useQuery({
     queryKey: ['financas', 'all'],
@@ -455,7 +461,7 @@ export default function Financas() {
                               >
                                 <Check className={cn('h-4 w-4', form.player_id === player.id ? 'opacity-100' : 'opacity-0')} />
                                 <div className="min-w-0">
-                                  <div className="truncate font-medium">{playerName(player)}</div>
+                                  <div className="flex items-center gap-1.5"><span className="truncate font-medium">{playerName(player)}</span>{[...(playerServers.get(player.steamid) || [])].map((playerServer) => <span key={playerServer} className="shrink-0 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{playerServer === 'server_1' ? 'Server 1' : 'Server 2'}</span>)}</div>
                                   <div className="truncate font-mono text-xs text-muted-foreground">{player.steamid}</div>
                                 </div>
                               </CommandItem>
