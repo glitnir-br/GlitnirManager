@@ -143,7 +143,6 @@ export default function Financas() {
     nick: data.personagem,
     valor: Number(data.valor) || 0,
     gc: String(data.gc ?? ''),
-    aguardando_vinculo: !data.player_id,
   });
 
   const createMutation = useMutation({
@@ -383,7 +382,7 @@ export default function Financas() {
                 ) : filtered.map((finance) => (
                   <TableRow key={finance.id} className="hover:bg-secondary/30">
                     <TableCell className="text-muted-foreground">{formatDate(finance.data || finance.created_date)}</TableCell>
-                    <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || (finance.aguardando_vinculo ? <span className="text-yellow-400">Aguardando vínculo</span> : '-')}</TableCell>
+                    <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || (!finance.player_id ? <span className="text-yellow-400">Aguardando vínculo</span> : '-')}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{finance.steamid || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{finance.server === 'server_1' ? 'Server 1' : finance.server === 'server_2' ? 'Server 2' : '-'}</TableCell>
                     <TableCell className="font-mono font-semibold text-green-400">R$ {formatMoney(finance.valor)}</TableCell>
