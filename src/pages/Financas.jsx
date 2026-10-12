@@ -372,6 +372,7 @@ export default function Financas() {
                   <TableHead>Data</TableHead>
                   <TableHead>Personagem</TableHead>
                   <TableHead>Steam ID</TableHead>
+                  <TableHead>Observação</TableHead>
                   <TableHead>Servidor</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Moeda Glitnir</TableHead>
@@ -381,12 +382,13 @@ export default function Financas() {
               </TableHeader>
               <TableBody>
                 {!filtered.length ? (
-                  <TableRow><TableCell colSpan={8} className="py-12 text-center text-muted-foreground">Nenhuma doação encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="py-12 text-center text-muted-foreground">Nenhuma doação encontrada</TableCell></TableRow>
                 ) : filtered.map((finance) => (
                   <TableRow key={finance.id} className="hover:bg-secondary/30">
                     <TableCell className="text-muted-foreground">{formatDate(finance.data || finance.created_date)}</TableCell>
                     <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || (!finance.player_id ? <span className="text-yellow-400">Aguardando vínculo</span> : '-')}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{finance.steamid || '-'}</TableCell>
+                    <TableCell className="max-w-56 truncate text-muted-foreground" title={finance.observacao || ''}>{finance.observacao || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{finance.server === 'server_1' ? 'Server 1' : finance.server === 'server_2' ? 'Server 2' : '-'}</TableCell>
                     <TableCell className="font-mono font-semibold text-green-400">R$ {formatMoney(finance.valor)}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{finance.gc || '-'}</TableCell>
