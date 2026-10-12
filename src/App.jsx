@@ -19,10 +19,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Players from '@/pages/Players';
 import Financas from '@/pages/Financas';
-import Compras from '@/pages/Compras';
 import Banidos from '@/pages/Banidos';
 import Despesas from '@/pages/Despesas';
-import Relatorios from '@/pages/Relatorios';
 import AdminAccess from '@/pages/AdminAccess';
 import AdminSettings from '@/pages/AdminSettings';
 import SecuritySettings from '@/pages/SecuritySettings';
@@ -72,10 +70,8 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/players" element={<Players />} />
         <Route path="/financas" element={<Financas />} />
-        <Route path="/compras" element={<Compras />} />
         <Route path="/banidos" element={<Banidos />} />
         <Route path="/despesas" element={<Despesas />} />
-        <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/admin-access" element={<AdminAccess />} />
         <Route path="/admin-settings" element={<AdminSettings />} />
         <Route path="/security-settings" element={<SecuritySettings />} />

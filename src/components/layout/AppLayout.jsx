@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Sidebar from './Sidebar';
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { server, setServer } = useServer();
+  const location = useLocation();
+  const isDashboard = location.pathname === '/';
 
   return (
     <div className="min-h-screen bg-background">
@@ -21,13 +23,13 @@ export default function AppLayout() {
           <Menu className="w-5 h-5" />
         </Button>
         <span className="font-bold text-foreground">Glitnir Manager</span>
-        <div className="ml-auto flex items-center gap-2">
+        {!isDashboard && <div className="ml-auto flex items-center gap-2">
           <span className="hidden sm:inline text-xs font-medium text-muted-foreground">Visualizando:</span>
           <Select value={server} onValueChange={setServer}>
             <SelectTrigger className="h-9 w-36 bg-secondary font-semibold text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>{SERVERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
+        </div>}
       </header>
 
       <AccessRequestNotification />

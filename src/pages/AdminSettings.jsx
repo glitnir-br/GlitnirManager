@@ -123,13 +123,11 @@ export default function AdminSettings() {
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-2">Senhas de Acesso aos Módulos</h2>
                 <p className="text-muted-foreground text-sm mb-6">
-                  Defina a senha que será usada para acessar as áreas de Doações/GC, Pacotes de Guildas e Despesas. Senha padrão: <span className="font-semibold text-primary">Pituca00</span>
+                  Defina a senha que será usada para acessar as áreas de Doações/GC e Despesas. Senha padrão: <span className="font-semibold text-primary">Pituca00</span>
                 </p>
 
                 <div className="w-full space-y-6">
                    <FinancialPasswordField title="Doações/GC" module="doacoes" />
-                   <div className="border-t border-border pt-6"></div>
-                   <FinancialPasswordField title="Pacotes Guildas" module="compras" />
                    <div className="border-t border-border pt-6"></div>
                    <FinancialPasswordField title="Despesas" module="despesas" />
                    <div className="border-t border-border pt-6"></div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, ShoppingCart, ShieldBan, X, TrendingDown, BarChart2, Shield, Lock, UserCircle, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, ShieldBan, X, TrendingDown, Shield, Lock, UserCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -12,9 +12,7 @@ const allNavItems = [
   { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'moderador', 'suporte', 'visitante'] },
   { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'moderador', 'suporte', 'visitante'] },
   { label: 'Doações / GC',   path: '/financas',         icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
-  { label: 'Pacotes Guildas', path: '/compras',          icon: ShoppingCart,    roles: ['adm_principal', 'administrador', 'financeiro', 'suporte'] },
   { label: 'Despesas',        path: '/despesas',         icon: TrendingDown,    roles: ['adm_principal', 'administrador', 'financeiro'] },
-  { label: 'Relatórios',      path: '/relatorios',       icon: BarChart2,       roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Gerenciar Acesso', path: '/admin-access',     icon: UserCircle,      roles: ['adm_principal', 'administrador'] },
   { label: 'Configurações',   path: '/admin-settings',   icon: Shield,          roles: ['adm_principal'] },
   { label: 'Segurança',       path: '/security-settings',icon: Lock,            roles: ['adm_principal'] },
@@ -56,7 +54,7 @@ export default function Sidebar({ open, setOpen }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          {location.pathname !== '/' && <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Visualizando servidor</p>
             <Select value={server} onValueChange={setServer}>
               <SelectTrigger className="h-9 w-full bg-card font-semibold text-foreground">
@@ -66,7 +64,7 @@ export default function Sidebar({ open, setOpen }) {
                 {SERVERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const isBanidos = item.path === '/banidos';
