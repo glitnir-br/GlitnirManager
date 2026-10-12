@@ -50,6 +50,8 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
               <TableHead className="w-8"></TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Nick</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Steam ID</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Personagem</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Whitelist</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Guilda</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Obs</TableHead>
@@ -62,7 +64,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                 <TableBody ref={provided.innerRef} {...provided.droppableProps}>
                   {players.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                         Nenhum player encontrado
                       </TableCell>
                     </TableRow>
@@ -114,6 +116,18 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                                 </div>
                               </TableCell>
                               <TableCell className="font-mono text-sm text-muted-foreground">{player.steamid}</TableCell>
+                              <TableCell className="text-foreground">
+                                {player.personagens?.length ? player.personagens.join(', ') : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {player.whitelist_sincronizada ? (
+                                  <Badge variant="outline" className={player.na_whitelist
+                                    ? 'bg-green-500/15 text-green-400 border-green-500/30'
+                                    : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'}>
+                                    {player.na_whitelist ? 'Cadastrado' : 'Fora da lista'}
+                                  </Badge>
+                                ) : <span className="text-xs text-muted-foreground">Não sincronizado</span>}
+                              </TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={statusStyles[player.status] || statusStyles.ativo}>
                                   {player.status || 'ativo'}

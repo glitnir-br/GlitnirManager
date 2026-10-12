@@ -7,6 +7,9 @@ import PlayerTable from '@/components/players/PlayerTable';
 import PlayerFilters from '@/components/players/PlayerFilters';
 import AddPlayerDialog from '@/components/players/AddPlayerDialog';
 import { useServer } from '@/lib/ServerContext';
+import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/api/dbClient';
+import { RefreshCw } from 'lucide-react';
 
 async function checkDuplicates(players, current) {
   const isDuplicate = players.some(
@@ -17,10 +20,12 @@ async function checkDuplicates(players, current) {
 
 export default function Players() {
   const { server, serverLabel } = useServer();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [guildFilter, setGuildFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -63,6 +68,29 @@ export default function Players() {
   const reorderMutation = useMutation({
     mutationFn: (updates) => base44.entities.Player.bulkUpdate(updates),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      if (!supabase) throw new Error('A sincronização exige conexão com o Supabase.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+
+      const response = await fetch('/api/sync-whitelist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ server }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao sincronizar a whitelist.');
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['players', server] });
+      setSyncMessage(`${result.whitelist} na whitelist · ${result.created} novos · ${result.withoutCharacter} sem personagem`);
+    },
+    onError: (error) => setSyncMessage(error.message),
   });
 
   const guildas = useMemo(() => {
@@ -110,7 +138,13 @@ export default function Players() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Players</h1>
           <p className="text-muted-foreground text-sm mt-1">{players.length} jogadores cadastrados no {serverLabel}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {['adm_principal', 'administrador'].includes(user?.role) && (
+            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar whitelist'}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => {
@@ -155,6 +189,12 @@ export default function Players() {
           </Button>
         </div>
       </div>
+
+      {syncMessage && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${syncMutation.isError ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-green-500/30 bg-green-500/10 text-green-300'}`}>
+          {syncMessage}
+        </div>
+      )}
 
       <PlayerFilters
         search={search}

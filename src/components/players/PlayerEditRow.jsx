@@ -41,6 +41,12 @@ export default function PlayerEditRow({ player, onSave, onCancel, rowRef, dragga
           className="h-8 bg-secondary font-mono text-sm"
         />
       </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {player.personagens?.length ? player.personagens.join(', ') : '-'}
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">
+        {player.whitelist_sincronizada ? (player.na_whitelist ? 'Cadastrado' : 'Fora da lista') : 'Não sincronizado'}
+      </TableCell>
       <TableCell>
         <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
           <SelectTrigger className="h-8 bg-secondary w-28">
