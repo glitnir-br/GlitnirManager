@@ -38,6 +38,26 @@ const PIE_COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const recordDate = (record) => new Date(record.data || record.created_date);
 const hasCharacter = (player) => Array.isArray(player.personagens) && player.personagens.some(Boolean);
+const steamKey = (record) => String(record.steamid || '').replace(/^Steam_/i, '').trim().toLowerCase() || `registro:${record.id}`;
+
+const uniquePlayersBySteamId = (records) => {
+  const grouped = new Map();
+  records.forEach((player) => {
+    const key = steamKey(player);
+    const current = grouped.get(key);
+    if (!current) {
+      grouped.set(key, { ...player, personagens: player.personagens?.filter(Boolean) || [] });
+      return;
+    }
+    grouped.set(key, {
+      ...current,
+      status: current.status === 'ativo' || player.status === 'ativo' ? 'ativo' : current.status,
+      guilda: current.guilda || player.guilda,
+      personagens: [...new Set([...(current.personagens || []), ...(player.personagens || []).filter(Boolean)])],
+    });
+  });
+  return [...grouped.values()];
+};
 
 export default function Dashboard() {
   const [dashboardServer, setDashboardServer] = useState('all');
@@ -74,11 +94,14 @@ export default function Dashboard() {
   const currentBalance = currentRevenue - currentExpenseTotal;
   const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : null;
 
-  const whitelistPlayers = players.filter((player) => player.na_whitelist);
+  const whitelistPlayers = uniquePlayersBySteamId(players.filter((player) => player.na_whitelist));
   const activePlayers = whitelistPlayers.filter((player) => player.status === 'ativo');
   const playersWithoutCharacter = whitelistPlayers.filter((player) => !hasCharacter(player));
   const playersWithoutGuild = whitelistPlayers.filter((player) => !player.guilda);
   const pendingDonations = financas.filter((finance) => !finance.moeda_enviada);
+  const uniqueBannedPlayers = new Set(
+    banidos.filter((item) => item.na_banlist !== false).map(steamKey),
+  ).size;
 
   const monthlyData = useMemo(() => {
     return Array.from({ length: 6 }, (_, index) => {
@@ -126,7 +149,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
         <StatCard title="Sem personagem" value={playersWithoutCharacter.length} icon={UserRoundX} glowColor="#f59e0b" subtitle="Players que precisam de identificação" />
-        <StatCard title="Banidos" value={banidos.filter((item) => item.na_banlist !== false).length} icon={Ban} glowColor="#ef4444" subtitle="Banimentos registrados" />
+        <StatCard title="Banidos" value={uniqueBannedPlayers} icon={Ban} glowColor="#ef4444" subtitle="Steam IDs únicos banidos" />
         <StatCard title="Arrecadado no mês" value={money(currentRevenue)} icon={CircleDollarSign} glowColor="#a855f7" subtitle={revenueChange === null ? 'Sem comparação anterior' : `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}% versus mês anterior`} />
         <StatCard title="Saldo líquido do mês" value={money(currentBalance)} icon={currentBalance >= 0 ? TrendingUp : TrendingDown} glowColor={currentBalance >= 0 ? '#22c55e' : '#ef4444'} subtitle={`${money(currentExpenseTotal)} em despesas`} />
         <StatCard title="Moeda Glitnir pendente" value={pendingDonations.reduce((sum, item) => sum + Number(item.gc || 0), 0)} icon={Coins} glowColor="#f59e0b" subtitle={`${pendingDonations.length} doações aguardando envio`} />
