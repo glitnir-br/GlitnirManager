@@ -140,7 +140,11 @@ export default function Financas() {
   const donationPayload = ({ valorOption: _valorOption, ...data }) => ({
     ...data,
     data: data.data ? new Date(data.data).toISOString() : new Date().toISOString(),
-    nick: data.personagem,
+    player_id: data.player_id || null,
+    steamid: data.steamid || null,
+    personagem: data.personagem || null,
+    nick: data.personagem || null,
+    server: data.server || null,
     valor: Number(data.valor) || 0,
     gc: String(data.gc ?? ''),
   });
@@ -149,7 +153,6 @@ export default function Financas() {
     mutationFn: (data) => base44.entities.Financa.create({
       ...donationPayload(data),
       data: new Date().toISOString(),
-      server: data.server || null,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financas'] });
