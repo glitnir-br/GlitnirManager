@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isSameMonth, subMonths } from 'date-fns';
 import {
   AlertTriangle,
@@ -8,6 +8,7 @@ import {
   Coins,
   TrendingDown,
   TrendingUp,
+  RefreshCw,
   UserRoundX,
   Users,
 } from 'lucide-react';
@@ -25,10 +26,12 @@ import {
   YAxis,
 } from 'recharts';
 
-import { base44 } from '@/api/dbClient';
+import { base44, supabase } from '@/api/dbClient';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import StatCard from '@/components/dashboard/StatCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/AuthContext';
 import { SERVERS } from '@/lib/ServerContext';
 
 const SERVER_OPTIONS = [{ value: 'all', label: 'Todos os servidores' }, ...SERVERS];
@@ -61,6 +64,9 @@ const uniquePlayersBySteamId = (records) => {
 
 export default function Dashboard() {
   const [dashboardServer, setDashboardServer] = useState('all');
+  const [syncMessage, setSyncMessage] = useState('');
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const queryOptions = { refetchOnWindowFocus: true, staleTime: 0 };
   const playersQuery = useQuery({ queryKey: ['dashboard', 'players'], queryFn: () => base44.entities.Player.list(), ...queryOptions });
@@ -68,6 +74,48 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
+
+  const globalSyncMutation = useMutation({
+    mutationFn: async () => {
+      if (!supabase) throw new Error('A sincronização exige conexão com o Supabase.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+
+      const sync = async (endpoint, server) => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ server }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `Falha ao sincronizar ${server}.`);
+        return result;
+      };
+
+      const jobs = SERVERS.flatMap(({ value }) => [
+        { server: value, type: 'whitelist', run: () => sync('/api/sync-whitelist', value) },
+        { server: value, type: 'banidos', run: () => sync('/api/sync-banlist', value) },
+      ]);
+      const results = await Promise.allSettled(jobs.map(async (job) => ({ ...job, result: await job.run() })));
+      return results.map((result, index) => ({
+        server: jobs[index].server,
+        type: jobs[index].type,
+        success: result.status === 'fulfilled',
+        result: result.status === 'fulfilled' ? result.value.result : null,
+        error: result.status === 'rejected' ? result.reason.message : null,
+      }));
+    },
+    onSuccess: (results) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      const successful = results.filter((item) => item.success).length;
+      const failed = results.filter((item) => !item.success);
+      setSyncMessage(failed.length
+        ? `${successful}/4 sincronizações concluídas. ${failed.map((item) => `${SERVER_LABELS[item.server]} (${item.type}): ${item.error}`).join(' · ')}`
+        : 'Whitelist e banidos sincronizados com sucesso nos dois servidores.');
+    },
+    onError: (error) => setSyncMessage(error.message),
+  });
 
   const filterServer = (items = []) => dashboardServer === 'all'
     ? items
@@ -137,14 +185,33 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground md:text-3xl">Dashboard Global</h1>
           <p className="mt-1 text-sm text-muted-foreground">Visão consolidada operacional e financeira da Glitnir</p>
         </div>
-        <div className="w-full sm:w-56">
-          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Visualizar</label>
-          <Select value={dashboardServer} onValueChange={setDashboardServer}>
-            <SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger>
-            <SelectContent>{SERVER_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-          </Select>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+          <div className="w-full sm:w-56">
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Visualizar</label>
+            <Select value={dashboardServer} onValueChange={setDashboardServer}>
+              <SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger>
+              <SelectContent>{SERVER_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          {['adm_principal', 'administrador'].includes(user?.role) && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={globalSyncMutation.isPending}
+              onClick={() => { setSyncMessage(''); globalSyncMutation.mutate(); }}
+            >
+              <RefreshCw className={`h-4 w-4 ${globalSyncMutation.isPending ? 'animate-spin' : ''}`} />
+              {globalSyncMutation.isPending ? 'Sincronizando...' : 'Sincronizar servidores'}
+            </Button>
+          )}
         </div>
       </div>
+
+      {syncMessage && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${globalSyncMutation.isError || syncMessage.includes('/4') ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-green-500/30 bg-green-500/10 text-green-300'}`}>
+          {syncMessage}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
