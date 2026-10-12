@@ -15,9 +15,9 @@ export default function AppLayout() {
     <div className="min-h-screen bg-background">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      {/* Cabeçalho global: o filtro de servidor permanece disponível em todo o sistema. */}
-      <header className="fixed top-0 left-0 right-0 lg:left-64 z-30 h-16 bg-card/90 backdrop-blur-xl border-b border-border px-4 md:px-8 flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+      {/* No desktop o seletor fica no menu lateral; no mobile, no cabeçalho. */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-30 h-16 bg-card/90 backdrop-blur-xl border-b border-border px-4 flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
           <Menu className="w-5 h-5" />
         </Button>
         <span className="font-bold text-foreground">Glitnir Manager</span>
@@ -33,7 +33,7 @@ export default function AppLayout() {
       <AccessRequestNotification />
 
       {/* Main content */}
-      <main className="min-h-screen min-w-0 pt-16 lg:ml-64">
+      <main className="min-h-screen min-w-0 pt-16 lg:ml-64 lg:pt-0">
         <div className="w-full min-w-0 p-4 md:p-8">
           <Outlet />
         </div>
