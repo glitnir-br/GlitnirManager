@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, parseISO } from 'date-fns';
+import { format, isSameMonth, isSameYear, isToday, parseISO, subDays } from 'date-fns';
 import {
   Check,
   CheckCircle2,
@@ -88,7 +88,7 @@ export default function Financas() {
   const [filterValor, setFilterValor] = useState('');
   const [filterGc, setFilterGc] = useState('');
   const [filterEnvio, setFilterEnvio] = useState('todos');
-  const [filterData, setFilterData] = useState('');
+  const [filterData, setFilterData] = useState('todos');
 
   const { data: gcTabela = [] } = useQuery({
     queryKey: ['gcTabela', 'global'],
@@ -231,29 +231,32 @@ export default function Financas() {
   };
 
   const total = financas.reduce((sum, finance) => sum + Number(finance.valor || 0), 0);
-  const availableDates = [...new Set(
-    financas.map((finance) => (finance.data || finance.created_date || '').slice(0, 10)).filter(Boolean),
-  )].sort((a, b) => b.localeCompare(a));
-
   const filtered = financas.filter((finance) => {
-    const date = (finance.data || finance.created_date || '').slice(0, 10);
+    const date = parseISO(finance.data || finance.created_date || new Date().toISOString());
     const identity = `${finance.personagem || finance.nick || ''} ${finance.steamid || ''}`.toLowerCase();
+    const matchesPeriod = filterData === 'todos'
+      || (filterData === 'hoje' && isToday(date))
+      || (filterData === '7_dias' && date >= subDays(new Date(), 7))
+      || (filterData === '30_dias' && date >= subDays(new Date(), 30))
+      || (filterData === 'mes_atual' && isSameMonth(date, new Date()))
+      || (filterData === 'mes_anterior' && isSameMonth(date, subDays(new Date(), new Date().getDate())))
+      || (filterData === 'ano_atual' && isSameYear(date, new Date()));
     return (
       (!filterPlayer || identity.includes(filterPlayer.toLowerCase())) &&
       (!filterValor || String(finance.valor || '').includes(filterValor)) &&
       (!filterGc || String(finance.gc || '').toLowerCase().includes(filterGc.toLowerCase())) &&
       (filterEnvio === 'todos' || (filterEnvio === 'enviado' ? finance.moeda_enviada : !finance.moeda_enviada)) &&
-      (!filterData || date === filterData)
+      matchesPeriod
     );
   });
 
-  const hasFilters = filterPlayer || filterValor || filterGc || filterEnvio !== 'todos' || filterData;
+  const hasFilters = filterPlayer || filterValor || filterGc || filterEnvio !== 'todos' || filterData !== 'todos';
   const clearFilters = () => {
     setFilterPlayer('');
     setFilterValor('');
     setFilterGc('');
     setFilterEnvio('todos');
-    setFilterData('');
+    setFilterData('todos');
   };
 
   if (playersLoading || financesLoading) {
@@ -341,11 +344,16 @@ export default function Financas() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data</Label>
-                <Select value={filterData || 'todas'} onValueChange={(value) => setFilterData(value === 'todas' ? '' : value)}>
+                <Select value={filterData} onValueChange={setFilterData}>
                   <SelectTrigger className="h-8 bg-secondary text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todas">Todas as datas</SelectItem>
-                    {availableDates.map((date) => <SelectItem key={date} value={date}>{formatDate(date)}</SelectItem>)}
+                    <SelectItem value="todos">Todo o período</SelectItem>
+                    <SelectItem value="hoje">Último dia</SelectItem>
+                    <SelectItem value="7_dias">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30_dias">Últimos 30 dias</SelectItem>
+                    <SelectItem value="mes_atual">Mês atual</SelectItem>
+                    <SelectItem value="mes_anterior">Último mês</SelectItem>
+                    <SelectItem value="ano_atual">Ano atual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
