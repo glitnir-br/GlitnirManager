@@ -34,9 +34,9 @@ const roleConfig = {
     color: 'bg-green-500/20 text-green-400 border-green-500/30',
     label: 'Financeiro',
   },
-  moderador: {
-    color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-    label: 'Moderador',
+  visitante: {
+    color: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    label: 'Visitante',
   },
   usuario_comum: {
     color: 'bg-gray-500/20 text-gray-400 border-gray-500/30',

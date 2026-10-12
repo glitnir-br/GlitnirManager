@@ -8,9 +8,9 @@ import { useServer, SERVERS } from '@/lib/ServerContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const allNavItems = [
-  { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'moderador', 'suporte', 'visitante'] },
-  { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'moderador', 'suporte', 'visitante'] },
-  { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'moderador', 'suporte', 'visitante'] },
+  { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
+  { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
+  { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Doações / GC',   path: '/financas',         icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Despesas',        path: '/despesas',         icon: TrendingDown,    roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Gerenciar Acesso', path: '/admin-access',     icon: UserCircle,      roles: ['adm_principal', 'administrador'] },

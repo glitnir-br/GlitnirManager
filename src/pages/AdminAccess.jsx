@@ -18,8 +18,6 @@ import { useAuth } from '@/lib/AuthContext';
 const ROLES = {
   administrador: { label: 'Administrador', profileRole: 'administrador' },
   financeiro: { label: 'Financeiro', profileRole: 'financeiro' },
-  moderador: { label: 'Moderador', profileRole: 'moderador' },
-  suporte: { label: 'Suporte', profileRole: 'suporte' },
   visitante: { label: 'Visitante', profileRole: 'visitante' },
   adm_principal: { label: 'ADM Principal', profileRole: 'adm_principal' },
 };

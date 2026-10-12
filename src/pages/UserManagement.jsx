@@ -242,8 +242,7 @@ export default function UserManagement() {
                                disabled={['empreendedor.padilha1998@gmail.com', 'victorpadilha1998@gmail.com'].includes(profile.email)}
                                title={['empreendedor.padilha1998@gmail.com', 'victorpadilha1998@gmail.com'].includes(profile.email) ? 'ADM Principal não pode ter cargo alterado' : ''}
                              >
-                              <option value="usuario_comum">Usuário Comum</option>
-                              <option value="moderador">Moderador</option>
+                              <option value="visitante">Visitante</option>
                               <option value="financeiro">Financeiro</option>
                               <option value="administrador">Administrador</option>
                               <option value="adm_principal">ADM Principal</option>
