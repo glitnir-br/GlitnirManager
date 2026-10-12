@@ -28,6 +28,22 @@ const actionLabels = { approve: 'Aprovar acesso', block: 'Bloquear acesso', unbl
 const formatDate = (date) => date ? format(new Date(date), 'dd/MM/yyyy HH:mm') : '-';
 const profileStatusToAccessStatus = (status) => status === 'bloqueado' ? 'bloqueado' : status === 'pendente' ? 'pendente' : 'aprovado';
 
+const showTemporaryPasswordDialog = ({ email, temporaryPassword }) => {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem;';
+  const dialog = document.createElement('div');
+  dialog.style.cssText = 'width:min(28rem,100%);border:1px solid #4b5563;border-radius:.75rem;background:#18181b;color:#fafafa;padding:1.5rem;font-family:system-ui;';
+  dialog.innerHTML = `<h2 style="margin:0 0 .75rem;font-size:1.25rem">Senha temporária criada</h2><p style="margin:0 0 1rem;color:#a1a1aa;font-size:.9rem">Entregue esta senha para <strong style="color:#fff">${email}</strong>. Ela será alterada no primeiro login.</p><code style="display:block;overflow-wrap:anywhere;border:1px solid #7c3aed;border-radius:.5rem;background:#27272a;padding:.75rem;color:#c4b5fd;font-size:1rem;font-weight:700">${temporaryPassword}</code>`;
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem;';
+  const copy = document.createElement('button'); copy.textContent = 'Copiar senha';
+  const close = document.createElement('button'); close.textContent = 'Concluir';
+  [copy, close].forEach((button) => { button.style.cssText = 'border:1px solid #52525b;border-radius:.4rem;padding:.5rem .75rem;background:#27272a;color:#fff;cursor:pointer;'; });
+  copy.onclick = async () => { await navigator.clipboard.writeText(temporaryPassword); copy.textContent = 'Copiada!'; };
+  close.onclick = () => overlay.remove();
+  actions.append(copy, close); dialog.append(actions); overlay.append(dialog); document.body.append(overlay);
+};
+
 export default function AdminAccess() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -128,8 +144,20 @@ export default function AdminAccess() {
       await base44.integrations.Core.SendEmail({ to: normalizedEmail, subject: 'Acesso liberado — Glitnir Manager', body: `Você foi adicionado como ${ROLES[role].label}.` });
       await logAction('access_invite', normalizedEmail, `Acesso criado manualmente como ${ROLES[role].label}.`);
     },
-    onSuccess: (result) => { invalidate(); setInviteSuccess(`Acesso criado. Senha temporária: ${result.temporaryPassword}`); window.alert(`Acesso criado com sucesso.\n\nSenha temporária de ${result.email}:\n${result.temporaryPassword}\n\nGuarde e entregue esta senha ao usuário. Ela será obrigatoriamente alterada no primeiro login.`); setInviteEmail(''); setInviteRole('visitante'); },
+    onSuccess: (result) => { invalidate(); setInviteSuccess('Acesso criado com sucesso.'); showTemporaryPasswordDialog(result); setInviteEmail(''); setInviteRole('visitante'); },
     onError: (error) => setInviteError(error.message),
+  });
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (email) => {
+      if (!supabase) throw new Error('O reset de senha exige conexão com o Supabase.');
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch('/api/reset-user-password', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` }, body: JSON.stringify({ email }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao resetar senha.');
+      return result;
+    },
+    onSuccess: (result) => window.alert(`Senha temporária gerada para ${result.email}:\n\n${result.temporaryPassword}\n\nO usuário deverá alterá-la no próximo login.`),
+    onError: (error) => window.alert(error.message),
   });
 
   const filteredRows = accessRows.filter((row) => (!search || row.email?.toLowerCase().includes(search.toLowerCase())) && (statusFilter === 'todos' || row.status === statusFilter));
