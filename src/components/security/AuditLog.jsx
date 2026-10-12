@@ -16,7 +16,12 @@ const ACTION_LABELS = {
   access_removed: 'Acesso Removido',
   financial_access: 'Acesso Financeiro',
   unauthorized_attempt: 'Tentativa Não Autorizada',
-  admin_panel_access: 'Acesso ao Painel Admin'
+  admin_panel_access: 'Acesso ao Painel Admin',
+  data_create: 'Dado adicionado',
+  data_update: 'Dado modificado',
+  data_delete: 'Dado excluído',
+  data_bulk_update: 'Dados modificados em lote',
+  data_bulk_delete: 'Dados excluídos em lote',
 };
 
 const ACTION_COLORS = {
@@ -27,7 +32,22 @@ const ACTION_COLORS = {
   access_removed: 'text-red-400',
   financial_access: 'text-primary',
   unauthorized_attempt: 'text-red-500',
-  admin_panel_access: 'text-primary'
+  admin_panel_access: 'text-primary',
+  data_create: 'text-green-400',
+  data_update: 'text-blue-400',
+  data_delete: 'text-red-400',
+  data_bulk_update: 'text-blue-400',
+  data_bulk_delete: 'text-red-400',
+};
+
+const formatDetails = (details) => {
+  try {
+    const parsed = JSON.parse(details);
+    const entries = Object.entries(parsed).filter(([key]) => key !== 'entidade');
+    return `${parsed.entidade || 'Sistema'}${entries.length ? ` — ${entries.map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`).join(' · ')}` : ''}`;
+  } catch {
+    return details || '-';
+  }
 };
 
 export default function AuditLog() {
@@ -69,13 +89,13 @@ export default function AuditLog() {
                 </TableCell>
                 <TableCell>
                   <span className={`text-sm font-semibold ${ACTION_COLORS[log.action] || 'text-foreground'}`}>
-                    {ACTION_LABELS[log.action] || log.action}
+                  {ACTION_LABELS[log.action] || log.action}
                   </span>
                 </TableCell>
                 <TableCell className="text-sm text-foreground font-mono">{log.user_email}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{log.performed_by}</TableCell>
                 <TableCell className="whitespace-normal break-words text-xs text-muted-foreground">
-                  {log.details}
+                  {formatDetails(log.details)}
                 </TableCell>
               </TableRow>
             ))}

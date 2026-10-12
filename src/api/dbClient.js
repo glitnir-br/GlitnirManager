@@ -67,6 +67,38 @@ const setLocalStorage = (entityName, items) => {
   localStorage.setItem(`glitnir_db_${entityName}`, JSON.stringify(items));
 };
 
+const SENSITIVE_FIELDS = ['password', 'senha', 'token', 'secret', 'codigo', 'code'];
+
+const auditPayload = (data = {}) => Object.fromEntries(Object.entries(data).map(([key, value]) => [
+  key,
+  SENSITIVE_FIELDS.some((field) => key.toLowerCase().includes(field)) ? '[oculto]' : value,
+]));
+
+const writeAuditLog = async (action, entityName, details = {}) => {
+  if (entityName === 'SecurityLog' && action === 'create') return;
+  try {
+    let email = 'sistema';
+    if (supabase) {
+      const { data } = await supabase.auth.getUser();
+      email = data.user?.email || email;
+      await supabase.from(TABLE_MAP.SecurityLog).insert([{
+        action: `data_${action}`,
+        user_email: email,
+        performed_by: email,
+        details: JSON.stringify({ entidade: entityName, ...details }),
+        timestamp: new Date().toISOString(),
+      }]);
+      return;
+    }
+    email = JSON.parse(localStorage.getItem('glitnir_local_user') || '{}').email || email;
+    const logs = getLocalStorage('SecurityLog');
+    logs.unshift({ id: `local_audit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, action: `data_${action}`, user_email: email, performed_by: email, details: JSON.stringify({ entidade: entityName, ...details }), timestamp: new Date().toISOString() });
+    setLocalStorage('SecurityLog', logs);
+  } catch (error) {
+    console.warn('Não foi possível registrar a auditoria.', error);
+  }
+};
+
 const createEntityManager = (entityName) => {
   const tableName = TABLE_MAP[entityName] || entityName.toLowerCase();
 
@@ -130,7 +162,9 @@ const createEntityManager = (entityName) => {
       if (supabase) {
         const { data: inserted, error } = await supabase.from(tableName).insert([data]).select();
         if (error) throw new Error(`Falha ao criar em ${tableName}: ${error.message}`);
-        return inserted?.[0] || null;
+        const record = inserted?.[0] || null;
+        await writeAuditLog('create', entityName, { id: record?.id, dados: auditPayload(data) });
+        return record;
       }
 
       const items = getLocalStorage(entityName);
@@ -141,6 +175,7 @@ const createEntityManager = (entityName) => {
       };
       items.unshift(newItem);
       setLocalStorage(entityName, items);
+      await writeAuditLog('create', entityName, { id: newItem.id, dados: auditPayload(data) });
       return newItem;
     },
 
@@ -148,7 +183,9 @@ const createEntityManager = (entityName) => {
       if (supabase) {
         const { data: updated, error } = await supabase.from(tableName).update(data).eq('id', id).select();
         if (error) throw new Error(`Falha ao atualizar ${tableName}: ${error.message}`);
-        return updated?.[0] || null;
+        const record = updated?.[0] || null;
+        await writeAuditLog('update', entityName, { id, alteracoes: auditPayload(data) });
+        return record;
       }
 
       const items = getLocalStorage(entityName);
@@ -156,6 +193,7 @@ const createEntityManager = (entityName) => {
       if (index !== -1) {
         items[index] = { ...items[index], ...data, updated_at: new Date().toISOString() };
         setLocalStorage(entityName, items);
+        await writeAuditLog('update', entityName, { id, alteracoes: auditPayload(data) });
         return items[index];
       }
       return null;
@@ -170,12 +208,14 @@ const createEntityManager = (entityName) => {
       if (supabase) {
         const { error } = await supabase.from(tableName).delete().eq('id', id);
         if (error) throw new Error(`Falha ao excluir de ${tableName}: ${error.message}`);
+        await writeAuditLog('delete', entityName, { id });
         return true;
       }
 
       let items = getLocalStorage(entityName);
       items = items.filter(item => item.id !== id);
       setLocalStorage(entityName, items);
+      await writeAuditLog('delete', entityName, { id });
       return true;
     },
 
@@ -185,6 +225,7 @@ const createEntityManager = (entityName) => {
           const { error } = await supabase.from(tableName).update(data).eq('id', id);
           if (error) throw new Error(`Falha ao atualizar ${tableName}: ${error.message}`);
         }
+        await writeAuditLog('bulk_update', entityName, { quantidade: updates.length, alteracoes: updates.map(({ id, data }) => ({ id, ...auditPayload(data) })) });
         return true;
       }
 
@@ -196,6 +237,7 @@ const createEntityManager = (entityName) => {
         }
       });
       setLocalStorage(entityName, items);
+      await writeAuditLog('bulk_update', entityName, { quantidade: updates.length, alteracoes: updates.map(({ id, data }) => ({ id, ...auditPayload(data) })) });
       return true;
     },
 
@@ -207,12 +249,14 @@ const createEntityManager = (entityName) => {
         });
         const { error } = await query;
         if (error) throw new Error(`Falha ao apagar em ${tableName}: ${error.message}`);
+        await writeAuditLog('bulk_delete', entityName, { criterios: auditPayload(criteria) });
         return true;
       }
 
       const items = getLocalStorage(entityName);
       const remaining = items.filter((item) => !Object.entries(criteria).every(([key, value]) => item[key] === value));
       setLocalStorage(entityName, remaining);
+      await writeAuditLog('bulk_delete', entityName, { criterios: auditPayload(criteria) });
       return true;
     },
 
