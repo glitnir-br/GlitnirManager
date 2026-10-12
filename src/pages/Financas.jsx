@@ -146,7 +146,11 @@ export default function Financas() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Financa.create({ ...donationPayload(data), server }),
+    mutationFn: (data) => base44.entities.Financa.create({
+      ...donationPayload(data),
+      data: new Date().toISOString(),
+      server,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financas', server] });
       closeDialog();
@@ -404,10 +408,6 @@ export default function Financas() {
             <DialogContent className="max-w-md border-border bg-card">
               <DialogHeader><DialogTitle>{editingId ? 'Editar doação' : 'Nova doação'}</DialogTitle></DialogHeader>
               <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label>Data</Label>
-                  <Input type="datetime-local" value={form.data} onChange={(event) => setForm({ ...form, data: event.target.value })} className="bg-secondary" />
-                </div>
                 <div className="space-y-2">
                   <Label>Personagem ou Steam ID *</Label>
                   <Popover open={playerPickerOpen} onOpenChange={setPlayerPickerOpen}>
