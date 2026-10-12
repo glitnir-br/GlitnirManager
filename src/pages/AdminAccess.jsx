@@ -1,348 +1,139 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { CheckCircle2, Search, ShieldCheck, ShieldOff, Trash2, UserPlus, Users, XCircle } from 'lucide-react';
+
 import { base44 } from '@/api/dbClient';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Trash2, ShieldCheck, ShieldOff, Users, UserPlus } from 'lucide-react';
-import { useAuth } from '@/lib/AuthContext';
 import FinancialPasswordProtection from '@/components/FinancialPasswordProtection';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/lib/AuthContext';
 
-const ROLE_MAP = {
-  nenhum:       { label: 'Nenhum',       profileRole: 'visitante',    profileStatus: 'ativo' },
-  administrador:{ label: 'Admin',        profileRole: 'administrador', profileStatus: 'ativo' },
-  financeiro:   { label: 'Financeiro',   profileRole: 'financeiro',   profileStatus: 'ativo' },
-  moderador:    { label: 'Moderador',    profileRole: 'moderador',    profileStatus: 'ativo' },
-  suporte:      { label: 'Suporte',      profileRole: 'suporte',      profileStatus: 'ativo' },
-  visitante:    { label: 'Visitante',    profileRole: 'visitante',    profileStatus: 'ativo' },
+const ROLES = {
+  administrador: { label: 'Administrador', profileRole: 'administrador' },
+  financeiro: { label: 'Financeiro', profileRole: 'financeiro' },
+  moderador: { label: 'Moderador', profileRole: 'moderador' },
+  suporte: { label: 'Suporte', profileRole: 'suporte' },
+  visitante: { label: 'Visitante', profileRole: 'visitante' },
 };
-
-const statusColor = {
-  pendente:  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  aprovado:  'bg-green-500/20 text-green-400 border-green-500/30',
-  bloqueado: 'bg-red-500/20 text-red-400 border-red-500/30',
-};
-
 const ADMIN_ROLES = ['adm_principal', 'administrador'];
+const statusStyle = { pendente: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', aprovado: 'bg-green-500/20 text-green-400 border-green-500/30', bloqueado: 'bg-red-500/20 text-red-400 border-red-500/30' };
+const actionLabels = { approve: 'Aprovar acesso', block: 'Bloquear acesso', unblock: 'Desbloquear acesso', role: 'Alterar cargo', delete: 'Excluir acesso' };
+
+const formatDate = (date) => date ? format(new Date(date), 'dd/MM/yyyy HH:mm') : '-';
 
 export default function AdminAccess() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
   const [pendingRoles, setPendingRoles] = useState({});
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('visitante');
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
-  const queryClient = useQueryClient();
+  const [actionDialog, setActionDialog] = useState(null);
+  const [reason, setReason] = useState('');
 
-  const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['access-requests'],
-    queryFn: () => base44.entities.AccessRequest.list('-created_date'),
-  });
+  const { data: requests = [], isLoading: requestsLoading } = useQuery({ queryKey: ['access-requests'], queryFn: () => base44.entities.AccessRequest.list('-created_date') });
+  const { data: profiles = [], isLoading: profilesLoading } = useQuery({ queryKey: ['user-profiles'], queryFn: () => base44.entities.UserProfile.list() });
+  const profilesByEmail = useMemo(() => new Map(profiles.map((profile) => [profile.email?.toLowerCase(), profile])), [profiles]);
 
-  const approveMutation = useMutation({
-    mutationFn: async ({ id, email, role }) => {
-      const { profileRole, profileStatus } = ROLE_MAP[role] || ROLE_MAP.nenhum;
-      await base44.entities.AccessRequest.update(id, { status: 'aprovado', role });
-      const profiles = await base44.entities.UserProfile.filter({ email });
-      if (profiles.length > 0) {
-        await base44.entities.UserProfile.update(profiles[0].id, {
-          role: profileRole,
-          status: profileStatus,
-          approved_by: user.email,
-          approved_date: new Date().toISOString(),
-        });
-      }
-      await base44.integrations.Core.SendEmail({
-        to: email,
-        subject: 'Acesso Liberado - Glitnir Nexus',
-        body: `Seu acesso ao Glitnir Nexus foi <strong>liberado</strong> com o cargo de <strong>${ROLE_MAP[role]?.label || 'Visitante'}</strong>. Você já pode entrar no sistema.`
-      });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
-  });
-
-  const blockMutation = useMutation({
-    mutationFn: async ({ id, email }) => {
-      await base44.entities.AccessRequest.update(id, { status: 'bloqueado' });
-      const profiles = await base44.entities.UserProfile.filter({ email });
-      if (profiles.length > 0) {
-        await base44.entities.UserProfile.update(profiles[0].id, { role: 'bloqueado', status: 'bloqueado' });
-      }
-      await base44.integrations.Core.SendEmail({
-        to: email,
-        subject: 'Acesso Negado - Glitnir Nexus',
-        body: `Seu acesso ao Glitnir Nexus foi <strong>negado</strong>. Entre em contato com o administrador se achar que isso foi um engano.`
-      });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
-  });
-
-  const unblockMutation = useMutation({
-    mutationFn: async ({ id, email }) => {
-      await base44.entities.AccessRequest.update(id, { status: 'pendente' });
-      const profiles = await base44.entities.UserProfile.filter({ email });
-      if (profiles.length > 0) {
-        await base44.entities.UserProfile.update(profiles[0].id, { role: 'pendente', status: 'pendente' });
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
-  });
-
-  const changeRoleMutation = useMutation({
-    mutationFn: async ({ id, email, role }) => {
-      const { profileRole } = ROLE_MAP[role] || ROLE_MAP.nenhum;
-      await base44.entities.AccessRequest.update(id, { role });
-      const profiles = await base44.entities.UserProfile.filter({ email });
-      if (profiles.length > 0) {
-        await base44.entities.UserProfile.update(profiles[0].id, { role: profileRole });
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.AccessRequest.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
-  });
-
-  const handleInvite = async (e) => {
-    e.preventDefault();
-    setInviteError('');
-    setInviteSuccess('');
-    if (!inviteEmail || !inviteEmail.includes('@')) {
-      setInviteError('Digite um email válido');
-      return;
-    }
-    const existing = requests.find(r => r.email === inviteEmail);
-    if (existing) {
-      setInviteError('Este email já está cadastrado');
-      return;
-    }
-    const { profileRole, profileStatus } = ROLE_MAP[inviteRole] || ROLE_MAP.visitante;
-    // Cria AccessRequest já aprovado
-    await base44.entities.AccessRequest.create({ email: inviteEmail, status: 'aprovado', role: inviteRole });
-    // Cria ou atualiza UserProfile
-    const profiles = await base44.entities.UserProfile.filter({ email: inviteEmail });
-    if (profiles.length > 0) {
-      await base44.entities.UserProfile.update(profiles[0].id, { role: profileRole, status: profileStatus, approved_by: user.email, approved_date: new Date().toISOString() });
-    } else {
-      await base44.entities.UserProfile.create({ email: inviteEmail, role: profileRole, status: profileStatus, approved_by: user.email, approved_date: new Date().toISOString() });
-    }
-    // Convida para o app
-    await base44.users.inviteUser(inviteEmail, 'user');
-    await base44.integrations.Core.SendEmail({
-      to: inviteEmail,
-      subject: 'Acesso Liberado - Glitnir Nexus',
-      body: `Você foi convidado para o Glitnir Nexus com o cargo de <strong>${ROLE_MAP[inviteRole]?.label || 'Visitante'}</strong>. Acesse o sistema com seu email.`
-    });
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['access-requests'] });
-    setInviteSuccess(`Email ${inviteEmail} adicionado com sucesso!`);
-    setInviteEmail('');
-    setInviteRole('visitante');
+    queryClient.invalidateQueries({ queryKey: ['user-profiles'] });
+  };
+  const profileFor = (email) => profilesByEmail.get(email?.toLowerCase());
+  const isProtected = (request) => request.email?.toLowerCase() === user?.email?.toLowerCase() || profileFor(request.email)?.role === 'adm_principal';
+  const logAction = (action, targetEmail, details) => base44.entities.SecurityLog.create({ action, user_email: targetEmail, performed_by: user.email, details, timestamp: new Date().toISOString() });
+  const saveProfile = async (email, changes) => {
+    const profile = profileFor(email);
+    if (profile) return base44.entities.UserProfile.update(profile.id, changes);
+    return base44.entities.UserProfile.create({ email, ...changes });
   };
 
-  if (!ADMIN_ROLES.includes(user?.role)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
-        <ShieldOff className="w-12 h-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-foreground">Acesso Negado</h2>
-        <p className="text-muted-foreground text-sm">Você não possui permissão para acessar esta área.</p>
-      </div>
-    );
-  }
+  const actionMutation = useMutation({
+    mutationFn: async ({ type, request, role, justification }) => {
+      if (['block', 'delete', 'role'].includes(type) && isProtected(request)) throw new Error('Não é permitido alterar, bloquear ou excluir a própria conta ou o ADM Principal.');
+      const selectedRole = role || request.role || 'visitante';
+      if (type === 'approve') {
+        await base44.entities.AccessRequest.update(request.id, { status: 'aprovado', role: selectedRole });
+        await saveProfile(request.email, { role: ROLES[selectedRole].profileRole, status: 'ativo', approved_by: user.email, approved_date: new Date().toISOString() });
+        await base44.integrations.Core.SendEmail({ to: request.email, subject: 'Acesso liberado — Glitnir Manager', body: `Seu acesso foi liberado como ${ROLES[selectedRole].label}.` });
+      }
+      if (type === 'block') {
+        await base44.entities.AccessRequest.update(request.id, { status: 'bloqueado' });
+        await saveProfile(request.email, { role: 'bloqueado', status: 'bloqueado' });
+        await base44.integrations.Core.SendEmail({ to: request.email, subject: 'Acesso bloqueado — Glitnir Manager', body: 'Seu acesso ao sistema foi bloqueado.' });
+      }
+      if (type === 'unblock') {
+        await base44.entities.AccessRequest.update(request.id, { status: 'pendente' });
+        await saveProfile(request.email, { role: 'pendente', status: 'pendente' });
+      }
+      if (type === 'role') {
+        await base44.entities.AccessRequest.update(request.id, { role: selectedRole });
+        await saveProfile(request.email, { role: ROLES[selectedRole].profileRole });
+      }
+      if (type === 'delete') await base44.entities.AccessRequest.delete(request.id);
+      await logAction(`access_${type}`, request.email, `${actionLabels[type]}. Cargo: ${ROLES[selectedRole]?.label || '-'}${justification ? `. Justificativa: ${justification}` : ''}`);
+    },
+    onSuccess: () => { invalidate(); setActionDialog(null); setReason(''); },
+  });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const inviteMutation = useMutation({
+    mutationFn: async ({ email, role }) => {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) throw new Error('Digite um e-mail válido.');
+      if (requests.some((request) => request.email?.toLowerCase() === normalizedEmail)) throw new Error('Este e-mail já possui um acesso registrado.');
+      await base44.entities.AccessRequest.create({ email: normalizedEmail, status: 'aprovado', role });
+      await saveProfile(normalizedEmail, { role: ROLES[role].profileRole, status: 'ativo', approved_by: user.email, approved_date: new Date().toISOString() });
+      await base44.users.inviteUser(normalizedEmail, 'user');
+      await base44.integrations.Core.SendEmail({ to: normalizedEmail, subject: 'Acesso liberado — Glitnir Manager', body: `Você foi adicionado como ${ROLES[role].label}.` });
+      await logAction('access_invite', normalizedEmail, `Acesso criado manualmente como ${ROLES[role].label}.`);
+    },
+    onSuccess: () => { invalidate(); setInviteSuccess('Acesso adicionado com sucesso.'); setInviteEmail(''); setInviteRole('visitante'); },
+    onError: (error) => setInviteError(error.message),
+  });
 
-  const pending   = requests.filter(r => r.status === 'pendente');
-  const aprovados = requests.filter(r => r.status === 'aprovado');
-  const bloqueados = requests.filter(r => r.status === 'bloqueado');
+  const filteredRequests = requests.filter((request) => (
+    (!search || request.email?.toLowerCase().includes(search.toLowerCase())) &&
+    (statusFilter === 'todos' || request.status === statusFilter)
+  ));
+  const pending = requests.filter((request) => request.status === 'pendente').length;
+  const approved = requests.filter((request) => request.status === 'aprovado').length;
+  const blocked = requests.filter((request) => request.status === 'bloqueado').length;
+
+  if (!ADMIN_ROLES.includes(user?.role)) return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center"><ShieldOff className="h-12 w-12 text-muted-foreground" /><h2 className="text-xl font-semibold">Acesso negado</h2><p className="text-sm text-muted-foreground">Você não possui permissão para acessar esta área.</p></div>;
+  if (requestsLoading || profilesLoading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" /></div>;
+
+  const openAction = (type, request, role) => { setReason(''); setActionDialog({ type, request, role }); };
 
   return (
     <FinancialPasswordProtection module="configuracoes">
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
-            <Users className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gerenciamento de Acesso</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {pending.length} pendente{pending.length !== 1 ? 's' : ''} · {aprovados.length} aprovado{aprovados.length !== 1 ? 's' : ''} · {bloqueados.length} bloqueado{bloqueados.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+        <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15"><Users className="h-5 w-5 text-primary" /></div><div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Gerenciamento de acesso</h1><p className="mt-0.5 text-sm text-muted-foreground">Aprove, bloqueie e acompanhe os acessos do sistema.</p></div></div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatusCard label="Pendentes" value={pending} color="text-yellow-400" onClick={() => setStatusFilter('pendente')} /><StatusCard label="Ativos" value={approved} color="text-green-400" onClick={() => setStatusFilter('aprovado')} /><StatusCard label="Bloqueados" value={blocked} color="text-red-400" onClick={() => setStatusFilter('bloqueado')} />
         </div>
 
-        {/* Adicionar email manualmente */}
-        <div className="bg-secondary/40 border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <UserPlus className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Adicionar Acesso Manualmente</span>
-          </div>
-          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs text-muted-foreground">Email</Label>
-              <Input
-                type="email"
-                placeholder="email@exemplo.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="bg-secondary h-9"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Cargo</Label>
-              <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger className="w-36 h-9 text-sm bg-secondary">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="administrador">Admin</SelectItem>
-                  <SelectItem value="financeiro">Financeiro</SelectItem>
-                  <SelectItem value="moderador">Moderador</SelectItem>
-                  <SelectItem value="suporte">Suporte</SelectItem>
-                  <SelectItem value="visitante">Visitante</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 h-9">
-              <UserPlus className="w-4 h-4 mr-2" /> Adicionar
-            </Button>
-          </form>
-          {inviteError && <p className="text-red-400 text-xs mt-2">{inviteError}</p>}
-          {inviteSuccess && <p className="text-green-400 text-xs mt-2">{inviteSuccess}</p>}
-        </div>
+        <div className="rounded-xl border border-border bg-secondary/40 p-4"><div className="mb-3 flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" /><span className="text-sm font-semibold">Adicionar acesso manualmente</span></div><form onSubmit={(event) => { event.preventDefault(); setInviteError(''); setInviteSuccess(''); inviteMutation.mutate({ email: inviteEmail, role: inviteRole }); }} className="flex flex-col items-end gap-3 sm:flex-row"><div className="w-full flex-1 space-y-1"><Label className="text-xs text-muted-foreground">E-mail</Label><Input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@exemplo.com" className="h-9 bg-secondary" /></div><div className="w-full space-y-1 sm:w-40"><Label className="text-xs text-muted-foreground">Cargo</Label><RoleSelect value={inviteRole} onValueChange={setInviteRole} /></div><Button type="submit" disabled={inviteMutation.isPending} className="h-9 bg-primary hover:bg-primary/90"><UserPlus className="mr-2 h-4 w-4" />Adicionar</Button></form>{inviteError && <p className="mt-2 text-xs text-red-400">{inviteError}</p>}{inviteSuccess && <p className="mt-2 text-xs text-green-400">{inviteSuccess}</p>}</div>
 
-        <div className="rounded-xl border border-border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary/50 hover:bg-secondary/50">
-                <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Email</TableHead>
-                <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Cargo</TableHead>
-                <TableHead className="text-xs uppercase tracking-wider text-muted-foreground w-56">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                    Nenhuma solicitação registrada
-                  </TableCell>
-                </TableRow>
-              ) : requests.map(req => (
-                <TableRow key={req.id} className="hover:bg-secondary/30">
-                  <TableCell className="font-medium text-foreground">{req.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColor[req.status]}>
-                      {req.status === 'pendente' && '⏳ Pendente'}
-                      {req.status === 'aprovado' && '✓ Aprovado'}
-                      {req.status === 'bloqueado' && '✕ Bloqueado'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {req.status === 'aprovado' ? (
-                      <Select
-                        value={req.role || 'nenhum'}
-                        onValueChange={(val) => changeRoleMutation.mutate({ id: req.id, email: req.email, role: val })}
-                      >
-                        <SelectTrigger className="w-36 h-8 text-xs bg-secondary">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="administrador">Admin</SelectItem>
-                          <SelectItem value="financeiro">Financeiro</SelectItem>
-                          <SelectItem value="moderador">Moderador</SelectItem>
-                          <SelectItem value="suporte">Suporte</SelectItem>
-                          <SelectItem value="visitante">Visitante</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : req.status === 'pendente' ? (
-                      <Select
-                        value={pendingRoles[req.id] || 'visitante'}
-                        onValueChange={(val) => setPendingRoles(prev => ({ ...prev, [req.id]: val }))}
-                      >
-                        <SelectTrigger className="w-36 h-8 text-xs bg-secondary">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="administrador">Admin</SelectItem>
-                          <SelectItem value="financeiro">Financeiro</SelectItem>
-                          <SelectItem value="moderador">Moderador</SelectItem>
-                          <SelectItem value="suporte">Suporte</SelectItem>
-                          <SelectItem value="visitante">Visitante</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">{ROLE_MAP[req.role]?.label || '—'}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {req.status === 'pendente' && (
-                        <>
-                          <Button
-                            size="sm" variant="ghost"
-                            onClick={() => approveMutation.mutate({ id: req.id, email: req.email, role: pendingRoles[req.id] || 'visitante' })}
-                            disabled={approveMutation.isPending}
-                            className="text-green-400 hover:bg-green-500/20 text-xs"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Aprovar
-                          </Button>
-                          <Button
-                            size="sm" variant="ghost"
-                            onClick={() => blockMutation.mutate({ id: req.id, email: req.email })}
-                            disabled={blockMutation.isPending}
-                            className="text-red-400 hover:bg-red-500/20 text-xs"
-                          >
-                            <XCircle className="w-3.5 h-3.5 mr-1" /> Negar
-                          </Button>
-                        </>
-                      )}
-                      {req.status === 'aprovado' && (
-                        <Button
-                          size="sm" variant="ghost"
-                          onClick={() => blockMutation.mutate({ id: req.id, email: req.email })}
-                          disabled={blockMutation.isPending}
-                          className="text-red-400 hover:bg-red-500/20 text-xs"
-                        >
-                          <ShieldOff className="w-3.5 h-3.5 mr-1" /> Bloquear
-                        </Button>
-                      )}
-                      {req.status === 'bloqueado' && (
-                        <Button
-                          size="sm" variant="ghost"
-                          onClick={() => unblockMutation.mutate({ id: req.id, email: req.email })}
-                          disabled={unblockMutation.isPending}
-                          className="text-yellow-400 hover:bg-yellow-500/20 text-xs"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Desbloquear
-                        </Button>
-                      )}
-                      <Button
-                        size="sm" variant="ghost"
-                        onClick={() => deleteMutation.mutate(req.id)}
-                        disabled={deleteMutation.isPending}
-                        className="text-muted-foreground hover:bg-red-500/10 hover:text-red-400 text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <div className="space-y-3 rounded-xl border border-border bg-secondary/40 p-4"><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por e-mail..." className="bg-secondary pl-9" /></div><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="pendente">Pendentes</SelectItem><SelectItem value="aprovado">Ativos</SelectItem><SelectItem value="bloqueado">Bloqueados</SelectItem></SelectContent></Select></div></div>
+
+        <div className="overflow-x-auto rounded-xl border border-border"><Table><TableHeader><TableRow className="bg-secondary/50 hover:bg-secondary/50"><TableHead>E-mail</TableHead><TableHead>Status</TableHead><TableHead>Cargo</TableHead><TableHead>Solicitado em</TableHead><TableHead>Aprovado por</TableHead><TableHead className="w-64">Ações</TableHead></TableRow></TableHeader><TableBody>{!filteredRequests.length ? <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground">Nenhum acesso encontrado</TableCell></TableRow> : filteredRequests.map((request) => { const profile = profileFor(request.email); const protectedAccount = isProtected(request); const selectedRole = pendingRoles[request.id] || request.role || 'visitante'; return <TableRow key={request.id} className="hover:bg-secondary/30"><TableCell><div className="font-medium text-foreground">{request.email}</div>{protectedAccount && <span className="text-xs text-primary">Conta protegida</span>}</TableCell><TableCell><Badge variant="outline" className={statusStyle[request.status]}>{request.status}</Badge></TableCell><TableCell>{request.status === 'pendente' ? <RoleSelect value={selectedRole} onValueChange={(role) => setPendingRoles((current) => ({ ...current, [request.id]: role }))} /> : request.status === 'aprovado' && !protectedAccount ? <RoleSelect value={request.role || 'visitante'} onValueChange={(role) => openAction('role', request, role)} /> : <span className="text-sm text-muted-foreground">{ROLES[request.role]?.label || profile?.role || '-'}</span>}</TableCell><TableCell className="text-xs text-muted-foreground">{formatDate(request.created_date)}</TableCell><TableCell className="text-xs text-muted-foreground">{profile?.approved_by || '-'}<br />{formatDate(profile?.approved_date)}</TableCell><TableCell><div className="flex flex-wrap gap-1">{request.status === 'pendente' && <><Button size="sm" variant="ghost" className="text-green-400 hover:bg-green-500/20" onClick={() => openAction('approve', request, selectedRole)}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />Aprovar</Button><Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/20" disabled={protectedAccount} onClick={() => openAction('block', request)}><XCircle className="mr-1 h-3.5 w-3.5" />Negar</Button></>}{request.status === 'aprovado' && <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/20" disabled={protectedAccount} onClick={() => openAction('block', request)}><ShieldOff className="mr-1 h-3.5 w-3.5" />Bloquear</Button>}{request.status === 'bloqueado' && <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-yellow-500/20" onClick={() => openAction('unblock', request)}><ShieldCheck className="mr-1 h-3.5 w-3.5" />Desbloquear</Button>}<Button size="sm" variant="ghost" disabled={protectedAccount} className="text-muted-foreground hover:bg-red-500/10 hover:text-red-400" onClick={() => openAction('delete', request)}><Trash2 className="h-3.5 w-3.5" /></Button></div></TableCell></TableRow>; })}</TableBody></Table></div>
+
+        <Dialog open={Boolean(actionDialog)} onOpenChange={(open) => !open && setActionDialog(null)}><DialogContent className="max-w-md border-border bg-card"><DialogHeader><DialogTitle>{actionDialog && actionLabels[actionDialog.type]}</DialogTitle></DialogHeader><div className="space-y-3"><p className="text-sm text-muted-foreground">Conta: <strong className="text-foreground">{actionDialog?.request.email}</strong></p><div className="space-y-2"><Label>Justificativa <span className="text-muted-foreground">(opcional)</span></Label><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Registre o motivo desta ação..." rows={3} /></div></div><DialogFooter><Button variant="outline" onClick={() => setActionDialog(null)}>Cancelar</Button><Button disabled={actionMutation.isPending} className={actionDialog?.type === 'delete' || actionDialog?.type === 'block' ? 'bg-destructive hover:bg-destructive/90' : ''} onClick={() => actionMutation.mutate({ ...actionDialog, justification: reason.trim() })}>{actionMutation.isPending ? 'Salvando...' : 'Confirmar'}</Button></DialogFooter></DialogContent></Dialog>
       </div>
     </FinancialPasswordProtection>
   );
 }
+
+function RoleSelect({ value, onValueChange }) { return <Select value={value} onValueChange={onValueChange}><SelectTrigger className="h-8 w-full bg-secondary text-xs sm:w-40"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(ROLES).map(([key, role]) => <SelectItem key={key} value={key}>{role.label}</SelectItem>)}</SelectContent></Select>; }
+function StatusCard({ label, value, color, onClick }) { return <button type="button" onClick={onClick} className="rounded-xl border border-border bg-card p-5 text-left transition-colors hover:bg-secondary/50"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className={`mt-2 text-3xl font-bold ${color}`}>{value}</p></button>; }
