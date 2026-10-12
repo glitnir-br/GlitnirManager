@@ -32,7 +32,6 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useServer } from '@/lib/ServerContext';
 import { cn } from '@/lib/utils';
 
 const localDateTimeNow = () => {
@@ -49,6 +48,7 @@ const emptyForm = () => ({
   valor: '',
   gc: '',
   valorOption: '',
+  server: '',
 });
 
 const formatDate = (dateStr) => {
@@ -79,7 +79,6 @@ const playerCharacters = (player) => {
 const playerName = (player) => playerCharacters(player).join(', ') || 'Sem personagem';
 
 export default function Financas() {
-  const { server } = useServer();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [playerPickerOpen, setPlayerPickerOpen] = useState(false);
@@ -107,8 +106,8 @@ export default function Financas() {
       ];
 
   const { data: players = [], isLoading: playersLoading } = useQuery({
-    queryKey: ['players', server, 'whitelist'],
-    queryFn: () => base44.entities.Player.filter({ server, na_whitelist: true }),
+    queryKey: ['players', 'whitelist', 'all'],
+    queryFn: async () => (await base44.entities.Player.filter({ na_whitelist: true })).filter((player) => player.server === 'server_1' || player.server === 'server_2'),
   });
 
   const sortedPlayers = useMemo(
@@ -117,8 +116,8 @@ export default function Financas() {
   );
 
   const { data: financasRaw = [], isLoading: financesLoading } = useQuery({
-    queryKey: ['financas', server],
-    queryFn: () => base44.entities.Financa.filter({ server }),
+    queryKey: ['financas', 'all'],
+    queryFn: () => base44.entities.Financa.list(),
   });
 
   const financas = useMemo(
@@ -149,10 +148,10 @@ export default function Financas() {
     mutationFn: (data) => base44.entities.Financa.create({
       ...donationPayload(data),
       data: new Date().toISOString(),
-      server,
+      server: data.server || null,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financas', server] });
+      queryClient.invalidateQueries({ queryKey: ['financas'] });
       closeDialog();
     },
   });
@@ -160,7 +159,7 @@ export default function Financas() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Financa.update(id, donationPayload(data)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financas', server] });
+      queryClient.invalidateQueries({ queryKey: ['financas'] });
       closeDialog();
     },
   });
@@ -171,12 +170,12 @@ export default function Financas() {
         moeda_enviada: sent,
         moeda_enviada_at: sent ? new Date().toISOString() : null,
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas', server] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas'] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Financa.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas', server] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas'] }),
   });
 
   const selectPlayer = (player) => {
@@ -222,6 +221,7 @@ export default function Financas() {
         : finance.personagem || finance.nick || '',
       valor: String(finance.valor ?? ''),
       gc: String(finance.gc ?? ''),
+      server: finance.server || '',
       valorOption:
         matchingOptionIndex >= 0
           ? String(gcTabelaDisplay[matchingOptionIndex].id || matchingOptionIndex)
@@ -359,6 +359,7 @@ export default function Financas() {
                   <TableHead>Data</TableHead>
                   <TableHead>Personagem</TableHead>
                   <TableHead>Steam ID</TableHead>
+                  <TableHead>Servidor</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Moeda Glitnir</TableHead>
                   <TableHead>Envio</TableHead>
@@ -367,12 +368,13 @@ export default function Financas() {
               </TableHeader>
               <TableBody>
                 {!filtered.length ? (
-                  <TableRow><TableCell colSpan={7} className="py-12 text-center text-muted-foreground">Nenhuma doação encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="py-12 text-center text-muted-foreground">Nenhuma doação encontrada</TableCell></TableRow>
                 ) : filtered.map((finance) => (
                   <TableRow key={finance.id} className="hover:bg-secondary/30">
                     <TableCell className="text-muted-foreground">{formatDate(finance.data || finance.created_date)}</TableCell>
                     <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || '-'}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{finance.steamid || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{finance.server === 'server_1' ? 'Server 1' : finance.server === 'server_2' ? 'Server 2' : '-'}</TableCell>
                     <TableCell className="font-mono font-semibold text-green-400">R$ {formatMoney(finance.valor)}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{finance.gc || '-'}</TableCell>
                     <TableCell>
@@ -443,6 +445,13 @@ export default function Financas() {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Servidor <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                  <Select value={form.server || 'nao_informado'} onValueChange={(value) => setForm((current) => ({ ...current, server: value === 'nao_informado' ? '' : value }))}>
+                    <SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="nao_informado">Não informado</SelectItem><SelectItem value="server_1">Server 1</SelectItem><SelectItem value="server_2">Server 2</SelectItem></SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Valor e Moeda Glitnir *</Label>
