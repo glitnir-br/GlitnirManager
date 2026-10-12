@@ -13,7 +13,7 @@ const statusStyles = {
   suspenso: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
 };
 
-export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) {
+export default function PlayerTable({ players, onUpdate, onDelete, onReorder, canReorder = true }) {
   const [editingId, setEditingId] = useState(null);
 
   const handleSave = async (id, data) => {
@@ -48,9 +48,8 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
           <TableHeader>
             <TableRow className="bg-secondary/50 hover:bg-secondary/50">
               <TableHead className="w-8"></TableHead>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Nick</TableHead>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Steam ID</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Personagem</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Steam ID</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Whitelist</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Guilda</TableHead>
@@ -59,12 +58,12 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
             </TableRow>
           </TableHeader>
           <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="players" isDropDisabled={editingId !== null}>
+            <Droppable droppableId="players" isDropDisabled={editingId !== null || !canReorder}>
               {(provided) => (
                 <TableBody ref={provided.innerRef} {...provided.droppableProps}>
                   {players.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         Nenhum player encontrado
                       </TableCell>
                     </TableRow>
@@ -104,21 +103,18 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder }) 
                               className="hover:brightness-110 transition-all"
                               style={{ ...rowStyle, ...dragProvided.draggableProps.style, opacity: snapshot.isDragging ? 0.8 : 1 }}
                             >
-                              <TableCell {...dragProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                              <TableCell {...(canReorder ? dragProvided.dragHandleProps : {})} className={canReorder ? 'cursor-grab active:cursor-grabbing' : ''}>
                                 <GripVertical className="w-4 h-4 text-muted-foreground" />
                               </TableCell>
                               <TableCell className="font-medium text-foreground">
                                 <div className="flex items-center gap-2">
-                                  {player.nick}
+                                  {player.personagens?.length ? player.personagens.join(', ') : '-'}
                                   {player.duplicado && (
                                     <AlertTriangle className="w-4 h-4 text-red-400" />
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell className="font-mono text-sm text-muted-foreground">{player.steamid}</TableCell>
-                              <TableCell className="text-foreground">
-                                {player.personagens?.length ? player.personagens.join(', ') : '-'}
-                              </TableCell>
                               <TableCell>
                                 {player.whitelist_sincronizada ? (
                                   <Badge variant="outline" className={player.na_whitelist

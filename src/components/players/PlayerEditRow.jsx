@@ -7,7 +7,7 @@ import { Check, X } from 'lucide-react';
 
 export default function PlayerEditRow({ player, onSave, onCancel, rowRef, draggableProps }) {
   const [form, setForm] = useState({
-    nick: player.nick || '',
+    personagem: player.personagens?.join(', ') || '',
     steamid: player.steamid || '',
     status: player.status || 'ativo',
     guilda: player.guilda || '',
@@ -28,9 +28,10 @@ export default function PlayerEditRow({ player, onSave, onCancel, rowRef, dragga
             title="Cor do player"
           />
           <Input
-            value={form.nick}
-            onChange={(e) => setForm({ ...form, nick: e.target.value })}
+            value={form.personagem}
+            onChange={(e) => setForm({ ...form, personagem: e.target.value })}
             className="h-8 bg-secondary"
+            placeholder="Nome do personagem"
           />
         </div>
       </TableCell>
@@ -40,9 +41,6 @@ export default function PlayerEditRow({ player, onSave, onCancel, rowRef, dragga
           onChange={(e) => setForm({ ...form, steamid: e.target.value })}
           className="h-8 bg-secondary font-mono text-sm"
         />
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {player.personagens?.length ? player.personagens.join(', ') : '-'}
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
         {player.whitelist_sincronizada ? (player.na_whitelist ? 'Cadastrado' : 'Fora da lista') : 'Não sincronizado'}
@@ -76,7 +74,10 @@ export default function PlayerEditRow({ player, onSave, onCancel, rowRef, dragga
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onSave(player.id, form)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+            const { personagem, ...data } = form;
+            onSave(player.id, { ...data, personagens: personagem.split(',').map((name) => name.trim()).filter(Boolean) });
+          }}>
             <Check className="w-4 h-4 text-green-400" />
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onCancel}>

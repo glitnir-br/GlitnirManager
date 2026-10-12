@@ -11,7 +11,7 @@ import { AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/dbClient';
 
 const initialForm = {
-  nick: '', steamid: '', status: 'ativo', guilda: '', observacao: '', cor: '',
+  personagem: '', steamid: '', status: 'ativo', guilda: '', observacao: '', cor: '',
 };
 
 export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
@@ -30,9 +30,10 @@ export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
   }, [form.steamid, server]);
 
   const handleSubmit = async () => {
-    if (!form.nick || !form.steamid) return;
+    if (!form.steamid) return;
     setLoading(true);
-    await onAdd(form);
+    const { personagem, ...data } = form;
+    await onAdd({ ...data, nick: '', personagens: personagem.trim() ? [personagem.trim()] : [] });
     setForm(initialForm);
     setLoading(false);
     onOpenChange(false);
@@ -46,8 +47,8 @@ export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Nick *</Label>
-            <Input value={form.nick} onChange={(e) => setForm({ ...form, nick: e.target.value })} className="bg-secondary" placeholder="Ex: xGamer123" />
+            <Label>Personagem</Label>
+            <Input value={form.personagem} onChange={(e) => setForm({ ...form, personagem: e.target.value })} className="bg-secondary" placeholder="Ex: Ragnar" />
           </div>
           <div className="space-y-2">
             <Label>Steam ID *</Label>
@@ -112,7 +113,7 @@ export default function AddPlayerDialog({ open, onOpenChange, onAdd, server }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { setForm(initialForm); setBannedInfo(null); onOpenChange(false); }}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={loading || !form.nick || !form.steamid} className="bg-primary hover:bg-primary/90">
+          <Button onClick={handleSubmit} disabled={loading || !form.steamid} className="bg-primary hover:bg-primary/90">
             {loading ? 'Salvando...' : 'Adicionar'}
           </Button>
         </DialogFooter>

@@ -149,7 +149,7 @@ export default async function handler(req, res) {
         personagens,
       };
       const matches = playersBySteamId.get(entry.steamid) || [];
-      const importedName = entry.label || personagens[0] || '';
+      const importedName = '';
 
       if (matches.length) {
         for (const player of matches) {

@@ -13,7 +13,7 @@ import { RefreshCw } from 'lucide-react';
 
 async function checkDuplicates(players, current) {
   const isDuplicate = players.some(
-    p => p.id !== current.id && (p.nick === current.nick || p.steamid === current.steamid)
+    p => p.id !== current.id && p.steamid === current.steamid
   );
   return isDuplicate;
 }
@@ -24,6 +24,7 @@ export default function Players() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [guildFilter, setGuildFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('character_asc');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
@@ -40,7 +41,7 @@ export default function Players() {
       const newPlayer = await base44.entities.Player.create({ ...data, server, duplicado: isDup });
       // Also mark existing players as duplicate if they match
       if (isDup) {
-        const matches = players.filter(p => p.nick === data.nick || p.steamid === data.steamid);
+        const matches = players.filter(p => p.steamid === data.steamid);
         for (const match of matches) {
           if (!match.duplicado) {
             await base44.entities.Player.update(match.id, { duplicado: true });
@@ -98,7 +99,7 @@ export default function Players() {
     return [...set].sort();
   }, [players]);
 
-  const sortedPlayers = useMemo(() => {
+  const manuallySortedPlayers = useMemo(() => {
     const ordered = players.filter(p => p.ordem !== undefined && p.ordem !== null);
     const unordered = players.filter(p => p.ordem === undefined || p.ordem === null)
       .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
@@ -107,16 +108,29 @@ export default function Players() {
   }, [players]);
 
   const filtered = useMemo(() => {
-    return sortedPlayers.filter(p => {
+    const visible = manuallySortedPlayers.filter(p => {
       const matchesSearch = !search ||
-        p.nick?.toLowerCase().includes(search.toLowerCase()) ||
+        p.personagens?.some((name) => name.toLowerCase().includes(search.toLowerCase())) ||
         p.steamid?.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === 'all' ||
         (statusFilter === 'duplicado' ? p.duplicado : p.status === statusFilter);
       const matchesGuild = guildFilter === 'all' || p.guilda === guildFilter;
       return matchesSearch && matchesStatus && matchesGuild;
     });
-  }, [sortedPlayers, search, statusFilter, guildFilter]);
+
+    const firstCharacter = (player) => player.personagens?.[0] || '';
+    const sorters = {
+      character_asc: (a, b) => firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR', { sensitivity: 'base' }),
+      character_desc: (a, b) => firstCharacter(b).localeCompare(firstCharacter(a), 'pt-BR', { sensitivity: 'base' }),
+      steamid_asc: (a, b) => String(a.steamid || '').localeCompare(String(b.steamid || '')),
+      steamid_desc: (a, b) => String(b.steamid || '').localeCompare(String(a.steamid || '')),
+      newest: (a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0),
+      oldest: (a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0),
+      whitelist: (a, b) => Number(b.na_whitelist) - Number(a.na_whitelist) || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
+      status: (a, b) => String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR') || firstCharacter(a).localeCompare(firstCharacter(b), 'pt-BR'),
+    };
+    return sortOrder === 'manual' ? visible : [...visible].sort(sorters[sortOrder]);
+  }, [manuallySortedPlayers, search, statusFilter, guildFilter, sortOrder]);
 
   const handleReorder = (reorderedList) => {
     const updates = reorderedList.map((p, idx) => ({ id: p.id, ordem: idx }));
@@ -148,21 +162,18 @@ export default function Players() {
           <Button
             variant="outline"
             onClick={() => {
-              const content = players
-                .filter(p => p.nick)
-                .map(p => p.nick)
-                .join('\n');
+              const content = players.flatMap(p => p.personagens || []).filter(Boolean).join('\n');
               const blob = new Blob([content], { type: 'text/plain' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = 'nomes.txt';
+              a.download = 'personagens.txt';
               a.click();
               URL.revokeObjectURL(url);
             }}
           >
             <Download className="w-4 h-4 mr-2" />
-            Nicks
+            Personagens
           </Button>
           <Button
             variant="outline"
@@ -204,6 +215,8 @@ export default function Players() {
         guildFilter={guildFilter}
         setGuildFilter={setGuildFilter}
         guildas={guildas}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
       />
 
       <PlayerTable
@@ -211,6 +224,7 @@ export default function Players() {
         onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
         onDelete={(id) => deleteMutation.mutateAsync(id)}
         onReorder={handleReorder}
+        canReorder={sortOrder === 'manual'}
       />
 
       <AddPlayerDialog
