@@ -92,8 +92,8 @@ export default function Financas() {
   const [filterData, setFilterData] = useState('');
 
   const { data: gcTabela = [] } = useQuery({
-    queryKey: ['gcTabela', server],
-    queryFn: () => base44.entities.GcTabela.filter({ server }, 'ordem'),
+    queryKey: ['gcTabela', 'global'],
+    queryFn: () => base44.entities.GcTabela.filter({ server: 'server_1' }, 'ordem'),
   });
 
   const gcTabelaDisplay = gcTabela.length
