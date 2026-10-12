@@ -49,6 +49,7 @@ const emptyForm = () => ({
   gc: '',
   valorOption: '',
   server: '',
+  observacao: '',
 });
 
 const formatDate = (dateStr) => {
@@ -142,6 +143,7 @@ export default function Financas() {
     nick: data.personagem,
     valor: Number(data.valor) || 0,
     gc: String(data.gc ?? ''),
+    aguardando_vinculo: !data.player_id,
   });
 
   const createMutation = useMutation({
@@ -221,6 +223,7 @@ export default function Financas() {
         : finance.personagem || finance.nick || '',
       valor: String(finance.valor ?? ''),
       gc: String(finance.gc ?? ''),
+      observacao: finance.observacao || '',
       server: finance.server || '',
       valorOption:
         matchingOptionIndex >= 0
@@ -380,7 +383,7 @@ export default function Financas() {
                 ) : filtered.map((finance) => (
                   <TableRow key={finance.id} className="hover:bg-secondary/30">
                     <TableCell className="text-muted-foreground">{formatDate(finance.data || finance.created_date)}</TableCell>
-                    <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || '-'}</TableCell>
+                    <TableCell className="font-medium text-foreground">{finance.personagem || finance.nick || (finance.aguardando_vinculo ? <span className="text-yellow-400">Aguardando vínculo</span> : '-')}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{finance.steamid || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{finance.server === 'server_1' ? 'Server 1' : finance.server === 'server_2' ? 'Server 2' : '-'}</TableCell>
                     <TableCell className="font-mono font-semibold text-green-400">R$ {formatMoney(finance.valor)}</TableCell>
@@ -419,7 +422,7 @@ export default function Financas() {
               <DialogHeader><DialogTitle>{editingId ? 'Editar doação' : 'Nova doação'}</DialogTitle></DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label>Personagem ou Steam ID *</Label>
+                  <Label>Personagem ou Steam ID <span className="font-normal text-muted-foreground">(opcional)</span></Label>
                   <Popover open={playerPickerOpen} onOpenChange={setPlayerPickerOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" className="h-auto min-h-10 w-full justify-between bg-secondary text-left font-normal">
@@ -454,6 +457,7 @@ export default function Financas() {
                     </PopoverContent>
                   </Popover>
                 </div>
+                {!form.player_id && <div className="space-y-2"><Label>Observação *</Label><Input value={form.observacao} onChange={(event) => setForm((current) => ({ ...current, observacao: event.target.value }))} placeholder="Ex: Doação recebida, aguardando entrada no servidor" className="bg-secondary" /></div>}
                 <div className="space-y-2">
                   <Label>Servidor <span className="font-normal text-muted-foreground">(opcional)</span></Label>
                   <Select value={form.server || 'nao_informado'} onValueChange={(value) => setForm((current) => ({ ...current, server: value === 'nao_informado' ? '' : value }))}>
@@ -498,7 +502,7 @@ export default function Financas() {
                 <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
                 <Button
                   onClick={() => editingId ? updateMutation.mutate({ id: editingId, data: form }) : createMutation.mutate(form)}
-                  disabled={!form.player_id || !form.valor || !form.gc || createMutation.isPending || updateMutation.isPending}
+                  disabled={(!form.player_id && !form.observacao.trim()) || !form.valor || !form.gc || createMutation.isPending || updateMutation.isPending}
                   className="bg-primary hover:bg-primary/90"
                 >
                   Salvar
