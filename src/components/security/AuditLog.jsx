@@ -108,9 +108,9 @@ export default function AuditLog() {
         </Table>
       </div>
       <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl border-border bg-card">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl overflow-hidden border-border bg-card">
           <DialogHeader><DialogTitle>Detalhes da auditoria</DialogTitle></DialogHeader>
-          {selectedLog && <div className="space-y-3 text-sm"><div className="grid gap-2 sm:grid-cols-2"><p><span className="text-muted-foreground">Ação:</span> {ACTION_LABELS[selectedLog.action] || selectedLog.action}</p><p><span className="text-muted-foreground">Usuário:</span> {selectedLog.performed_by || selectedLog.user_email || '-'}</p></div><pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-secondary p-3 font-mono text-xs text-foreground">{formatDetails(selectedLog.details)}</pre></div>}
+          {selectedLog && <div className="min-w-0 space-y-3 text-sm"><div className="grid min-w-0 gap-2 sm:grid-cols-2"><p className="min-w-0 break-words"><span className="text-muted-foreground">Ação:</span> {ACTION_LABELS[selectedLog.action] || selectedLog.action}</p><p className="min-w-0 break-words"><span className="text-muted-foreground">Usuário:</span> {selectedLog.performed_by || selectedLog.user_email || '-'}</p></div><pre className="max-h-96 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-lg bg-secondary p-3 font-mono text-xs text-foreground">{formatDetails(selectedLog.details)}</pre></div>}
         </DialogContent>
       </Dialog>
     </Card>
