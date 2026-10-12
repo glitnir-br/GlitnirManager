@@ -128,7 +128,7 @@ export default function AdminAccess() {
       await base44.integrations.Core.SendEmail({ to: normalizedEmail, subject: 'Acesso liberado — Glitnir Manager', body: `Você foi adicionado como ${ROLES[role].label}.` });
       await logAction('access_invite', normalizedEmail, `Acesso criado manualmente como ${ROLES[role].label}.`);
     },
-    onSuccess: (result) => { invalidate(); setInviteSuccess(`Acesso criado. Senha temporária: ${result.temporaryPassword}`); setInviteEmail(''); setInviteRole('visitante'); },
+    onSuccess: (result) => { invalidate(); setInviteSuccess(`Acesso criado. Senha temporária: ${result.temporaryPassword}`); window.alert(`Acesso criado com sucesso.\n\nSenha temporária de ${result.email}:\n${result.temporaryPassword}\n\nGuarde e entregue esta senha ao usuário. Ela será obrigatoriamente alterada no primeiro login.`); setInviteEmail(''); setInviteRole('visitante'); },
     onError: (error) => setInviteError(error.message),
   });
 
