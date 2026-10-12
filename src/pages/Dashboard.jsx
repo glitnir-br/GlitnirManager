@@ -1,83 +1,193 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { format, isSameMonth, subMonths } from 'date-fns';
+import {
+  AlertTriangle,
+  Ban,
+  CircleDollarSign,
+  Coins,
+  TrendingDown,
+  TrendingUp,
+  UserRoundX,
+  Users,
+} from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+
 import { base44 } from '@/api/dbClient';
-import { DollarSign, Users, TrendingUp } from 'lucide-react';
-import { useAuth } from '@/lib/AuthContext';
-import StatCard from '@/components/dashboard/StatCard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
-import { useServer } from '@/lib/ServerContext';
+import StatCard from '@/components/dashboard/StatCard';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SERVERS } from '@/lib/ServerContext';
+
+const SERVER_OPTIONS = [{ value: 'all', label: 'Todos os servidores' }, ...SERVERS];
+const SERVER_LABELS = Object.fromEntries(SERVERS.map((server) => [server.value, server.label]));
+const PIE_COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
+
+const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+const recordDate = (record) => new Date(record.data || record.created_date);
+const hasCharacter = (player) => Array.isArray(player.personagens) && player.personagens.some(Boolean);
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { server, serverLabel } = useServer();
-  const { data: players = [] } = useQuery({
-    queryKey: ['players', server],
-    queryFn: () => base44.entities.Player.filter({ server }),
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
+  const [dashboardServer, setDashboardServer] = useState('all');
 
-  const { data: financas = [] } = useQuery({
-    queryKey: ['financas', server],
-    queryFn: () => base44.entities.Financa.filter({ server }),
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
+  const queryOptions = { refetchOnWindowFocus: true, staleTime: 0 };
+  const playersQuery = useQuery({ queryKey: ['dashboard', 'players'], queryFn: () => base44.entities.Player.list(), ...queryOptions });
+  const financasQuery = useQuery({ queryKey: ['dashboard', 'financas'], queryFn: () => base44.entities.Financa.list(), ...queryOptions });
+  const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
+  const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
+  const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
 
-  const { data: compras = [] } = useQuery({
-    queryKey: ['compras', server],
-    queryFn: () => base44.entities.Compra.filter({ server }),
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
+  const filterServer = (items = []) => dashboardServer === 'all'
+    ? items
+    : items.filter((item) => item.server === dashboardServer);
 
-  const { data: despesas = [] } = useQuery({
-    queryKey: ['despesas', server],
-    queryFn: () => base44.entities.Despesa.filter({ server }),
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
+  const players = filterServer(playersQuery.data);
+  const financas = filterServer(financasQuery.data);
+  const compras = filterServer(comprasQuery.data);
+  const despesas = filterServer(despesasQuery.data);
+  const banidos = filterServer(banidosQuery.data);
+  const isLoading = [playersQuery, financasQuery, comprasQuery, despesasQuery, banidosQuery].some((query) => query.isLoading);
 
-  const totalArrecadado = financas.reduce((sum, f) => sum + (f.valor || 0), 0) + compras.reduce((sum, c) => sum + (c.valor || 0), 0);
-  const totalDespesas = despesas.reduce((sum, d) => sum + (d.valor || 0), 0);
-  const liquido = totalArrecadado - totalDespesas;
-  const totalPlayers = players.length;
+  const now = new Date();
+  const previousMonth = subMonths(now, 1);
+  const currentDonations = financas.filter((item) => isSameMonth(recordDate(item), now));
+  const currentPurchases = compras.filter((item) => isSameMonth(recordDate(item), now));
+  const currentExpenses = despesas.filter((item) => isSameMonth(recordDate(item), now));
+  const previousRevenue = [
+    ...financas.filter((item) => isSameMonth(recordDate(item), previousMonth)),
+    ...compras.filter((item) => isSameMonth(recordDate(item), previousMonth)),
+  ].reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const currentRevenue = [...currentDonations, ...currentPurchases].reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const currentExpenseTotal = currentExpenses.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const currentBalance = currentRevenue - currentExpenseTotal;
+  const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : null;
+
+  const whitelistPlayers = players.filter((player) => player.na_whitelist);
+  const activePlayers = whitelistPlayers.filter((player) => player.status === 'ativo');
+  const playersWithoutCharacter = whitelistPlayers.filter((player) => !hasCharacter(player));
+  const playersWithoutGuild = whitelistPlayers.filter((player) => !player.guilda);
+  const pendingDonations = financas.filter((finance) => !finance.moeda_enviada);
+
+  const monthlyData = useMemo(() => {
+    return Array.from({ length: 6 }, (_, index) => {
+      const monthDate = subMonths(now, 5 - index);
+      const inMonth = (item) => isSameMonth(recordDate(item), monthDate);
+      const donations = financas.filter(inMonth).reduce((sum, item) => sum + Number(item.valor || 0), 0);
+      const packages = compras.filter(inMonth).reduce((sum, item) => sum + Number(item.valor || 0), 0);
+      const expenses = despesas.filter(inMonth).reduce((sum, item) => sum + Number(item.valor || 0), 0);
+      return { month: format(monthDate, 'MM/yy'), arrecadado: donations + packages, despesas: expenses };
+    });
+  }, [dashboardServer, financasQuery.data, comprasQuery.data, despesasQuery.data]);
+
+  const guildData = useMemo(() => {
+    const totals = whitelistPlayers.reduce((acc, player) => {
+      const guild = player.guilda || 'Sem guilda';
+      acc[guild] = (acc[guild] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(totals)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 7);
+  }, [dashboardServer, playersQuery.data]);
+
+  if (isLoading) {
+    return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" /></div>;
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Visão geral do {serverLabel}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Dashboard Global</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Visão consolidada operacional e financeira da Glitnir</p>
+        </div>
+        <div className="w-full sm:w-56">
+          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Visualizar</label>
+          <Select value={dashboardServer} onValueChange={setDashboardServer}>
+            <SelectTrigger className="bg-secondary"><SelectValue /></SelectTrigger>
+            <SelectContent>{SERVER_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Líquido"
-          value={`R$ ${liquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icon={TrendingUp}
-          glowColor={liquido >= 0 ? "#22c55e" : "#ef4444"}
-          subtitle="Arrecadado - Despesas"
-        />
-        <StatCard
-          title="Total Arrecadado"
-          value={`R$ ${totalArrecadado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icon={DollarSign}
-          glowColor="#a855f7"
-          subtitle="Doações + Pacotes Guildas"
-        />
-        <StatCard
-          title="Total Players"
-          value={totalPlayers}
-          icon={Users}
-          glowColor="#3b82f6"
-          subtitle="Jogadores cadastrados"
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
+        <StatCard title="Sem personagem" value={playersWithoutCharacter.length} icon={UserRoundX} glowColor="#f59e0b" subtitle="Players que precisam de identificação" />
+        <StatCard title="Banidos" value={banidos.filter((item) => item.na_banlist !== false).length} icon={Ban} glowColor="#ef4444" subtitle="Banimentos registrados" />
+        <StatCard title="Arrecadado no mês" value={money(currentRevenue)} icon={CircleDollarSign} glowColor="#a855f7" subtitle={revenueChange === null ? 'Sem comparação anterior' : `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}% versus mês anterior`} />
+        <StatCard title="Saldo líquido do mês" value={money(currentBalance)} icon={currentBalance >= 0 ? TrendingUp : TrendingDown} glowColor={currentBalance >= 0 ? '#22c55e' : '#ef4444'} subtitle={`${money(currentExpenseTotal)} em despesas`} />
+        <StatCard title="Moeda Glitnir pendente" value={pendingDonations.reduce((sum, item) => sum + Number(item.gc || 0), 0)} icon={Coins} glowColor="#f59e0b" subtitle={`${pendingDonations.length} doações aguardando envio`} />
       </div>
 
-      {/* Recent Activity */}
-      <RecentActivity players={players} financas={financas} compras={compras} />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="font-semibold text-foreground">Movimentação dos últimos 6 meses</h2>
+          <p className="mb-5 text-xs text-muted-foreground">Arrecadação comparada às despesas</p>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} margin={{ left: 0, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} width={58} />
+                <Tooltip formatter={(value) => money(value)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <Legend />
+                <Bar dataKey="arrecadado" name="Arrecadado" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="despesas" name="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="font-semibold text-foreground">Players por guilda</h2>
+          <p className="mb-5 text-xs text-muted-foreground">Distribuição dos players presentes na whitelist</p>
+          <div className="h-72">
+            {guildData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={guildData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                    {guildData.map((entry, index) => <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Nenhum player na whitelist.</div>}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5">
+        <div className="mb-4 flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-400" /><h2 className="font-semibold text-foreground">Pendências</h2></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <PendingItem label="Moeda Glitnir não enviada" value={pendingDonations.length} />
+          <PendingItem label="Players sem personagem" value={playersWithoutCharacter.length} />
+          <PendingItem label="Players sem guilda" value={playersWithoutGuild.length} />
+        </div>
+      </div>
+
+      <RecentActivity players={players} financas={financas} banidos={banidos} serverLabels={SERVER_LABELS} showServer={dashboardServer === 'all'} />
+    </div>
+  );
+}
+
+function PendingItem({ label, value }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border bg-card/70 px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-lg font-bold text-amber-400">{value}</span>
     </div>
   );
 }

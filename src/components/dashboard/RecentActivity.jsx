@@ -1,81 +1,74 @@
 import React from 'react';
-import { Users, DollarSign } from 'lucide-react';
+import { format } from 'date-fns';
+import { Ban, Coins, Users } from 'lucide-react';
 
-export default function RecentActivity({ players, financas, compras }) {
-  const recentPlayers = [...players].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 5);
-  const recentFinancas = [...financas].sort((a, b) => {
-    const da = a.data || a.created_date?.slice(0, 10) || '';
-    const db = b.data || b.created_date?.slice(0, 10) || '';
-    return db.localeCompare(da);
-  }).slice(0, 5);
+const characters = (record) => record.personagem || record.personagens?.filter(Boolean).join(', ') || record.nick || 'Sem personagem';
+const dateValue = (record) => new Date(record.data || record.created_date || 0);
+const dateLabel = (record) => {
+  const date = dateValue(record);
+  return Number.isNaN(date.getTime()) ? '-' : format(date, 'dd/MM/yyyy HH:mm');
+};
+
+function ServerBadge({ record, serverLabels, showServer }) {
+  if (!showServer) return null;
+  return <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{serverLabels[record.server] || record.server}</span>;
+}
+
+export default function RecentActivity({ players, financas, banidos, serverLabels, showServer }) {
+  const recentPlayers = [...players].filter((player) => player.na_whitelist).sort((a, b) => dateValue(b) - dateValue(a)).slice(0, 5);
+  const recentDonations = [...financas].sort((a, b) => dateValue(b) - dateValue(a)).slice(0, 5);
+  const recentBans = [...banidos].sort((a, b) => dateValue(b) - dateValue(a)).slice(0, 5);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Recent Players */}
-      <div className="rounded-xl bg-card border border-border p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Users className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-foreground text-sm">Players Recentes</h3>
-        </div>
-        <div className="space-y-3">
-          {recentPlayers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum player cadastrado ainda.</p>
-          ) : (
-            recentPlayers.map(p => (
-              <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{
-                      background: p.cor || 'hsl(270, 70%, 55%, 0.2)',
-                      color: p.cor ? '#fff' : 'hsl(270, 70%, 55%)',
-                    }}
-                  >
-                    {p.nick?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{p.nick}</p>
-                    <p className="text-xs text-muted-foreground">{p.guilda || 'Sem guilda'}</p>
-                  </div>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  p.status === 'ativo' ? 'bg-green-500/15 text-green-400' :
-                  p.status === 'banido' ? 'bg-red-500/15 text-red-400' :
-                  p.status === 'suspenso' ? 'bg-yellow-500/15 text-yellow-400' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {p.status || 'ativo'}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <ActivityCard icon={Users} title="Players recentes" empty="Nenhum player na whitelist.">
+        {recentPlayers.map((player) => (
+          <ActivityRow key={player.id} title={characters(player)} subtitle={`${player.steamid || '-'} · ${player.guilda || 'Sem guilda'}`} date={dateLabel(player)}>
+            <ServerBadge record={player} serverLabels={serverLabels} showServer={showServer} />
+          </ActivityRow>
+        ))}
+      </ActivityCard>
 
-      {/* Recent Finances */}
-      <div className="rounded-xl bg-card border border-border p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <DollarSign className="w-4 h-4 text-accent" />
-          <h3 className="font-semibold text-foreground text-sm">Finanças Recentes</h3>
+      <ActivityCard icon={Coins} title="Doações recentes" empty="Nenhuma doação registrada.">
+        {recentDonations.map((finance) => (
+          <ActivityRow key={finance.id} title={characters(finance)} subtitle={`${finance.gc || 0} Moeda Glitnir · ${finance.moeda_enviada ? 'Enviado' : 'Não enviado'}`} date={dateLabel(finance)} value={`R$ ${Number(finance.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}>
+            <ServerBadge record={finance} serverLabels={serverLabels} showServer={showServer} />
+          </ActivityRow>
+        ))}
+      </ActivityCard>
+
+      <ActivityCard icon={Ban} title="Banimentos recentes" empty="Nenhum banimento registrado.">
+        {recentBans.map((ban) => (
+          <ActivityRow key={ban.id} title={characters(ban)} subtitle={`${ban.steamid || '-'} · ${ban.motivo || 'OUTRO'}`} date={dateLabel(ban)}>
+            <ServerBadge record={ban} serverLabels={serverLabels} showServer={showServer} />
+          </ActivityRow>
+        ))}
+      </ActivityCard>
+    </div>
+  );
+}
+
+function ActivityCard({ icon: Icon, title, empty, children }) {
+  const hasItems = React.Children.count(children) > 0;
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-foreground">{title}</h3></div>
+      <div className="space-y-1">{hasItems ? children : <p className="py-6 text-center text-sm text-muted-foreground">{empty}</p>}</div>
+    </div>
+  );
+}
+
+function ActivityRow({ title, subtitle, date, value, children }) {
+  return (
+    <div className="border-b border-border py-2.5 last:border-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2"><p className="truncate text-sm font-medium text-foreground">{title}</p>{children}</div>
+          <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="space-y-3">
-          {recentFinancas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma transação registrada ainda.</p>
-          ) : (
-            recentFinancas.map(f => (
-              <div key={f.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{f.nick}</p>
-                  <p className="text-xs text-muted-foreground">{f.enviado_por ? `por ${f.enviado_por}` : ''}</p>
-                </div>
-                <span className="text-sm font-mono font-semibold text-green-400">
-                  R$ {(f.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+        {value && <span className="shrink-0 font-mono text-sm font-semibold text-green-400">{value}</span>}
       </div>
+      <p className="mt-1 text-[11px] text-muted-foreground/70">{date}</p>
     </div>
   );
 }
