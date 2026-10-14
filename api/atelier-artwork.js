@@ -21,26 +21,18 @@ async function pterodactylRequest(path, responseType = 'json', options = {}) {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json', ...(options.contentType ? { 'Content-Type': options.contentType } : {}) },
   });
   if (!response.ok) throw new Error(`Pterodactyl respondeu ${response.status}: ${(await response.text()).slice(0, 300)}`);
-  return responseType === 'text' ? response.text() : response.json();
+  if (responseType === 'text') return response.text();
+  if (responseType === 'buffer') return response.arrayBuffer();
+  return response.json();
 }
 
 async function listServer(server) {
   const id = serverId(server);
   if (!id) throw new Error(`ID do ${server} não configurado.`);
   const listing = await pterodactylRequest(`/api/client/servers/${id}/files/list?directory=${encodeURIComponent(ARTWORK_PATH)}`);
-  const files = (listing.data || []).map((entry) => entry.attributes || entry)
-    .filter((file) => file.is_file !== false && isImageName(file.name || ''));
-  return Promise.all(files.map(async (file) => {
-    const download = await pterodactylRequest(
-      `/api/client/servers/${id}/files/download?file=${encodeURIComponent(`${ARTWORK_PATH}/${file.name}`)}`,
-    );
-    return {
-      name: file.name,
-      size: file.size || 0,
-      modifiedAt: file.modified_at || null,
-      previewUrl: download?.attributes?.url || null,
-    };
-  }));
+  return (listing.data || []).map((entry) => entry.attributes || entry)
+    .filter((file) => file.is_file !== false && isImageName(file.name || ''))
+    .map((file) => ({ name: file.name, size: file.size || 0, modifiedAt: file.modified_at || null }));
 }
 
 async function authenticate(req) {
@@ -76,6 +68,17 @@ export default async function handler(req, res) {
     if (!['server_1', 'server_2', 'todos'].includes(server)) return send(res, 400, { error: 'Servidor inválido.' });
     const name = String(req.body?.name || '').trim();
     if (!name || name !== name.split(/[\\/]/).pop() || !isImageName(name)) return send(res, 400, { error: 'Informe um arquivo de imagem válido.' });
+    if (action === 'preview') {
+      if (server === 'todos') return send(res, 400, { error: 'Selecione um servidor para visualizar a imagem.' });
+      const id = serverId(server);
+      if (!id) throw new Error(`ID do ${server} não configurado.`);
+      const extension = name.split('.').pop().toLowerCase();
+      const contentType = extension === 'jpg' ? 'image/jpeg' : `image/${extension}`;
+      const content = await pterodactylRequest(`/api/client/servers/${id}/files/contents?file=${encodeURIComponent(`${ARTWORK_PATH}/${name}`)}`, 'buffer');
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      return res.status(200).send(Buffer.from(content));
+    }
     const selectedServers = targets(server);
     if (action === 'delete') {
       await Promise.all(selectedServers.map(async (target) => {
