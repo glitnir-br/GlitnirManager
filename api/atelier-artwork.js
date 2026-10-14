@@ -28,9 +28,19 @@ async function listServer(server) {
   const id = serverId(server);
   if (!id) throw new Error(`ID do ${server} não configurado.`);
   const listing = await pterodactylRequest(`/api/client/servers/${id}/files/list?directory=${encodeURIComponent(ARTWORK_PATH)}`);
-  return (listing.data || []).map((entry) => entry.attributes || entry)
-    .filter((file) => file.is_file !== false && isImageName(file.name || ''))
-    .map((file) => ({ name: file.name, size: file.size || 0, modifiedAt: file.modified_at || null }));
+  const files = (listing.data || []).map((entry) => entry.attributes || entry)
+    .filter((file) => file.is_file !== false && isImageName(file.name || ''));
+  return Promise.all(files.map(async (file) => {
+    const download = await pterodactylRequest(
+      `/api/client/servers/${id}/files/download?file=${encodeURIComponent(`${ARTWORK_PATH}/${file.name}`)}`,
+    );
+    return {
+      name: file.name,
+      size: file.size || 0,
+      modifiedAt: file.modified_at || null,
+      previewUrl: download?.attributes?.url || null,
+    };
+  }));
 }
 
 async function authenticate(req) {
@@ -56,8 +66,8 @@ export default async function handler(req, res) {
       const [server1, server2] = await Promise.all([listServer('server_1'), listServer('server_2')]);
       const merged = new Map();
       for (const [server, files] of [['server_1', server1], ['server_2', server2]]) for (const file of files) {
-        const item = merged.get(file.name) || { name: file.name, servers: [], size: file.size, modifiedAt: file.modifiedAt };
-        item.servers.push(server); item.size = Math.max(item.size || 0, file.size || 0); item.modifiedAt = item.modifiedAt || file.modifiedAt; merged.set(file.name, item);
+        const item = merged.get(file.name) || { name: file.name, servers: [], size: file.size, modifiedAt: file.modifiedAt, previewUrl: file.previewUrl };
+        item.servers.push(server); item.size = Math.max(item.size || 0, file.size || 0); item.modifiedAt = item.modifiedAt || file.modifiedAt; item.previewUrl = item.previewUrl || file.previewUrl; merged.set(file.name, item);
       }
       return send(res, 200, { files: [...merged.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) });
     }
