@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Grid2X2, Image, ImageOff, List, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,37 +25,12 @@ async function callAtelier(body) {
   return result;
 }
 
-async function loadPreview(file) {
-  if (!supabase) throw new Error('A conexão com o Supabase é necessária.');
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
-  const response = await fetch('/api/atelier-artwork', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ action: 'preview', server: file.servers[0], name: file.name }),
-  });
-  if (!response.ok) throw new Error('Não foi possível carregar a imagem.');
-  return URL.createObjectURL(await response.blob());
-}
-
 function ServerTags({ servers }) {
   return <div className="flex flex-wrap gap-1.5">{servers.map((server) => <span key={server} className={`rounded-full border px-2 py-1 text-xs font-semibold ${server === 'server_1' ? 'border-blue-500/40 bg-blue-500/15 text-blue-300' : 'border-violet-500/40 bg-violet-500/15 text-violet-300'}`}>{SERVER_LABELS[server]}</span>)}</div>;
 }
 
 function ArtworkPreview({ file, className = '' }) {
-  const [url, setUrl] = useState(null);
-  useEffect(() => {
-    let active = true;
-    let objectUrl;
-    loadPreview(file).then((result) => {
-      objectUrl = result;
-      if (active) setUrl(result);
-      else URL.revokeObjectURL(result);
-    }).catch(() => { if (active) setUrl(null); });
-    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [file.name, file.servers]);
-  return url ? <img src={url} alt={file.name} className={className} /> : <ImageOff className="h-8 w-8 text-muted-foreground" />;
+  return file.previewUrl ? <img src={file.previewUrl} alt={file.name} className={className} /> : <ImageOff className="h-8 w-8 text-muted-foreground" />;
 }
 
 export default function Atelier() {
@@ -70,7 +45,14 @@ export default function Atelier() {
   const [view, setView] = useState('cards');
   const [previewFile, setPreviewFile] = useState(null);
   const { data, isLoading, error } = useQuery({ queryKey: ['atelier-artwork'], queryFn: () => callAtelier({ action: 'list' }) });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['atelier-artwork'] });
+  const syncMutation = useMutation({
+    mutationFn: () => callAtelier({ action: 'sync' }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['atelier-artwork'], { files: result.files });
+      setMessage(`${result.total} imagens sincronizadas${result.copied ? ` · ${result.copied} copiadas para o armazenamento` : ''}.`);
+    },
+    onError: (mutationError) => setMessage(mutationError.message),
+  });
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!file?.type.startsWith('image/')) throw new Error('Selecione apenas um arquivo de imagem.');
@@ -83,12 +65,12 @@ export default function Atelier() {
       });
       return callAtelier({ action: 'upload', server: uploadServer, name: file.name, mime: file.type, contentBase64 });
     },
-    onSuccess: () => { setUploadOpen(false); setFile(null); setMessage('Imagem enviada com sucesso.'); refresh(); },
+    onSuccess: (result) => { setUploadOpen(false); setFile(null); queryClient.setQueryData(['atelier-artwork'], { files: result.files }); setMessage('Imagem enviada com sucesso.'); },
     onError: (mutationError) => setMessage(mutationError.message),
   });
   const deleteMutation = useMutation({
     mutationFn: () => callAtelier({ action: 'delete', server: deleteServer, name: deleteFile.name }),
-    onSuccess: () => { setDeleteFile(null); setMessage('Imagem removida com sucesso.'); refresh(); },
+    onSuccess: (result) => { setDeleteFile(null); queryClient.setQueryData(['atelier-artwork'], { files: result.files }); setMessage('Imagem removida com sucesso.'); },
     onError: (mutationError) => setMessage(mutationError.message),
   });
   const files = data?.files || [];
@@ -96,7 +78,7 @@ export default function Atelier() {
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15"><Image className="h-5 w-5 text-primary" /></div><div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Atelier</h1><p className="mt-0.5 text-sm text-muted-foreground">{files.length} imagens encontradas nos servidores</p></div></div>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />Sincronizar</Button><Button onClick={() => setUploadOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar imagem</Button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}><RefreshCw className={`mr-2 h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />{syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}</Button><Button onClick={() => setUploadOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar imagem</Button></div>
     </div>
     {message && <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">{message}</div>}
     {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error.message}</div>}
