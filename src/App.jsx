@@ -20,6 +20,7 @@ import Players from '@/pages/Players';
 import Financas from '@/pages/Financas';
 import Banidos from '@/pages/Banidos';
 import Atelier from '@/pages/Atelier';
+import Arquivos from '@/pages/Arquivos';
 import Despesas from '@/pages/Despesas';
 import AdminAccess from '@/pages/AdminAccess';
 import AdminSettings from '@/pages/AdminSettings';
@@ -76,6 +77,7 @@ const AuthenticatedApp = () => {
         <Route path="/financas" element={<Financas />} />
         <Route path="/banidos" element={<Banidos />} />
         <Route path="/atelier" element={<Atelier />} />
+        <Route path="/arquivos" element={<Arquivos />} />
         <Route path="/despesas" element={<Despesas />} />
         <Route path="/admin-access" element={<AdminAccess />} />
         <Route path="/admin-settings" element={<AdminSettings />} />
