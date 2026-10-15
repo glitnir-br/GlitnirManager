@@ -2,12 +2,15 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ShieldBan, Users } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/AuthContext';
+import { SERVERS, useServer } from '@/lib/ServerContext';
 import Players from '@/pages/Players';
 import Banidos from '@/pages/Banidos';
 
 export default function Jogadores() {
   const { user } = useAuth();
+  const { server, setServer } = useServer();
   const [searchParams, setSearchParams] = useSearchParams();
   const canViewBanned = ['adm_principal', 'administrador', 'visitante'].includes(user?.role);
   const requestedTab = searchParams.get('tab');
@@ -18,9 +21,9 @@ export default function Jogadores() {
   };
 
   return <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-foreground md:text-3xl">Jogadores</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Cadastros, whitelist e banimentos dos servidores.</p>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Jogadores</h1><p className="mt-1 text-sm text-muted-foreground">Cadastros, whitelist e banimentos dos servidores.</p></div>
+      <div className="w-full sm:w-52"><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Servidor</label><Select value={server} onValueChange={setServer}><SelectTrigger className="bg-secondary font-semibold"><SelectValue /></SelectTrigger><SelectContent>{SERVERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></div>
     </div>
     <Tabs value={activeTab} onValueChange={changeTab}>
       <TabsList className={`grid w-full ${canViewBanned ? 'grid-cols-2' : 'grid-cols-1'} sm:w-auto`}>
