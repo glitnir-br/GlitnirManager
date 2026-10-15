@@ -40,6 +40,13 @@ const SERVER_OPTIONS = [{ value: 'all', label: 'Todos os servidores' }, ...SERVE
 const SERVER_LABELS = Object.fromEntries(SERVERS.map((server) => [server.value, server.label]));
 const PIE_COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
 const POWER_STATE_LABELS = { running: 'Ligado', offline: 'Desligado', starting: 'Iniciando', stopping: 'Desligando', unavailable: 'Indisponível' };
+const countdownLabel = (effectiveAt, now) => {
+  const seconds = Math.max(0, Math.ceil((new Date(effectiveAt).getTime() - now) / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+const maintenancePhase = (status, now) => status?.phase === 'scheduled' && new Date(status.effectiveAt).getTime() > now
+  ? 'scheduled'
+  : status?.enabled ? 'active' : 'normal';
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const recordDate = (record) => new Date(record.data || record.created_date);
@@ -92,6 +99,7 @@ export default function Dashboard() {
   const [syncMessage, setSyncMessage] = useState('');
   const [maintenanceTarget, setMaintenanceTarget] = useState('todos');
   const [maintenanceConfirmation, setMaintenanceConfirmation] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -108,6 +116,11 @@ export default function Dashboard() {
     const timer = window.setTimeout(() => setSyncMessage(''), 5000);
     return () => window.clearTimeout(timer);
   }, [syncMessage]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const globalSyncMutation = useMutation({
     mutationFn: async () => {
@@ -153,11 +166,11 @@ export default function Dashboard() {
   });
 
   const maintenanceMutation = useMutation({
-    mutationFn: ({ enabled, server }) => maintenanceApi({ action: 'set', enabled, server }),
+    mutationFn: ({ action, enabled, server }) => maintenanceApi({ action, enabled, server }),
     onSuccess: (result, variables) => {
       queryClient.setQueryData(['server-maintenance'], result);
       setMaintenanceConfirmation(null);
-      setSyncMessage(variables.enabled ? 'Manutenção ativada.' : 'Manutenção desativada.');
+      setSyncMessage(variables.action === 'abort' ? 'Manutenção abortada antes do prazo.' : variables.enabled ? 'Manutenção agendada para daqui a 5 minutos.' : 'Manutenção desativada.');
     },
     onError: (error) => setSyncMessage(error.message),
   });
@@ -181,8 +194,10 @@ export default function Dashboard() {
   const targetStatuses = maintenanceTarget === 'todos'
     ? maintenanceStatuses
     : maintenanceStatuses.filter((item) => item.server === maintenanceTarget);
-  const targetHasMaintenance = targetStatuses.some((item) => item.enabled);
   const targetCanManageMaintenance = targetStatuses.length > 0 && targetStatuses.every((item) => item.powerState === 'running');
+  const targetCanScheduleMaintenance = targetCanManageMaintenance && targetStatuses.every((item) => !item.enabled);
+  const targetCanAbortMaintenance = targetCanManageMaintenance && targetStatuses.length > 0 && targetStatuses.every((item) => maintenancePhase(item, currentTime) === 'scheduled');
+  const targetCanDeactivateMaintenance = targetCanManageMaintenance && targetStatuses.length > 0 && targetStatuses.every((item) => maintenancePhase(item, currentTime) === 'active');
 
   const now = new Date();
   const previousMonth = subMonths(now, 1);
@@ -282,13 +297,15 @@ export default function Dashboard() {
                 const status = maintenanceStatuses.find((item) => item.server === value);
                 const enabled = status?.enabled;
                 const powerState = status?.powerState || 'unavailable';
-                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState} · {enabled === null || enabled === undefined ? 'Manutenção desconhecida' : enabled ? 'Em manutenção' : 'Sem manutenção'}</span>;
+                const phase = maintenancePhase(status, currentTime);
+                const maintenanceLabel = enabled === null || enabled === undefined ? 'Manutenção desconhecida' : phase === 'scheduled' ? `Agendada · ${countdownLabel(status.effectiveAt, currentTime)}` : enabled ? 'Em manutenção' : 'Sem manutenção';
+                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState} · {maintenanceLabel}</span>;
               })}
             </div>
           </div>
           {['adm_principal', 'administrador'].includes(user?.role) && <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="w-full sm:w-48"><Label className="mb-1.5 block text-xs text-muted-foreground">Aplicar em</Label><Select value={maintenanceTarget} onValueChange={setMaintenanceTarget}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os servidores</SelectItem><SelectItem value="server_1">Server 1</SelectItem><SelectItem value="server_2">Server 2</SelectItem></SelectContent></Select></div>
-            <div className="flex gap-2"><Button variant="outline" title={targetCanManageMaintenance ? undefined : 'O servidor precisa estar ligado para alterar a manutenção.'} disabled={maintenanceMutation.isPending || !targetCanManageMaintenance || targetStatuses.every((item) => item.enabled)} onClick={() => setMaintenanceConfirmation(true)}>Ativar</Button><Button variant="destructive" title={targetCanManageMaintenance ? undefined : 'O servidor precisa estar ligado para alterar a manutenção.'} disabled={maintenanceMutation.isPending || !targetCanManageMaintenance || !targetHasMaintenance} onClick={() => setMaintenanceConfirmation(false)}>Desativar</Button></div>
+            <div className="flex gap-2"><Button variant="outline" title={targetCanManageMaintenance ? undefined : 'O servidor precisa estar ligado para alterar a manutenção.'} disabled={maintenanceMutation.isPending || !targetCanScheduleMaintenance} onClick={() => setMaintenanceConfirmation('schedule')}>Ativar</Button><Button variant="outline" disabled={maintenanceMutation.isPending || !targetCanAbortMaintenance} onClick={() => setMaintenanceConfirmation('abort')}>Abortar manutenção</Button><Button variant="destructive" disabled={maintenanceMutation.isPending || !targetCanDeactivateMaintenance} onClick={() => setMaintenanceConfirmation('deactivate')}>Desativar</Button></div>
           </div>}
         </div>
       </div>
@@ -349,7 +366,7 @@ export default function Dashboard() {
       </div>
 
       <RecentActivity players={players} financas={financas} banidos={banidos} serverLabels={SERVER_LABELS} showServer={dashboardServer === 'all'} />
-      <Dialog open={maintenanceConfirmation !== null} onOpenChange={(open) => !open && setMaintenanceConfirmation(null)}><DialogContent><DialogHeader><DialogTitle>{maintenanceConfirmation ? 'Ativar manutenção?' : 'Desativar manutenção?'}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{maintenanceConfirmation ? 'Será criado o arquivo maintenance.' : 'O arquivo maintenance será removido.'} Destino: <strong className="text-foreground">{maintenanceTarget === 'todos' ? 'Todos os servidores' : SERVER_LABELS[maintenanceTarget]}</strong>.</p><DialogFooter><Button variant="outline" onClick={() => setMaintenanceConfirmation(null)} disabled={maintenanceMutation.isPending}>Cancelar</Button><Button variant={maintenanceConfirmation ? 'default' : 'destructive'} onClick={() => maintenanceMutation.mutate({ enabled: maintenanceConfirmation, server: maintenanceTarget })} disabled={maintenanceMutation.isPending}>{maintenanceMutation.isPending ? 'Aplicando...' : 'Confirmar'}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={maintenanceConfirmation !== null} onOpenChange={(open) => !open && setMaintenanceConfirmation(null)}><DialogContent><DialogHeader><DialogTitle>{maintenanceConfirmation === 'schedule' ? 'Agendar manutenção?' : maintenanceConfirmation === 'abort' ? 'Abortar manutenção?' : 'Desativar manutenção?'}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{maintenanceConfirmation === 'schedule' ? 'Será criado o arquivo maintenance e a contagem de 5 minutos será iniciada.' : maintenanceConfirmation === 'abort' ? 'O arquivo maintenance será removido e a contagem será interrompida.' : 'O arquivo maintenance será removido para liberar o servidor.'} Destino: <strong className="text-foreground">{maintenanceTarget === 'todos' ? 'Todos os servidores' : SERVER_LABELS[maintenanceTarget]}</strong>.</p><DialogFooter><Button variant="outline" onClick={() => setMaintenanceConfirmation(null)} disabled={maintenanceMutation.isPending}>Cancelar</Button><Button variant={maintenanceConfirmation === 'deactivate' ? 'destructive' : 'default'} onClick={() => maintenanceMutation.mutate(maintenanceConfirmation === 'abort' ? { action: 'abort', server: maintenanceTarget } : { action: 'set', enabled: maintenanceConfirmation === 'schedule', server: maintenanceTarget })} disabled={maintenanceMutation.isPending}>{maintenanceMutation.isPending ? 'Aplicando...' : 'Confirmar'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
