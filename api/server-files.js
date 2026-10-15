@@ -71,6 +71,19 @@ export default async function handler(req, res) { if (req.method !== 'POST') ret
   const server = req.body?.server; if (!['server_1', 'server_2', 'todos'].includes(server)) return send(res, 400, { error: 'Servidor inválido.' });
   if (action === 'read') { const filePath = String(req.body?.path || ''); const fileExtension = filePath.split('.').pop()?.toLowerCase(); if (!safe(filePath) || !TEXT_EXTENSIONS.has(fileExtension) || server === 'todos') return send(res, 400, { error: 'Selecione um arquivo de texto e um servidor válido.' }); const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(category, filePath))}`, { text: true }); if (content.length > 1024 * 1024) return send(res, 413, { error: 'O arquivo é grande demais para pré-visualização (limite de 1 MB).' }); return send(res, 200, { content }); }
   const selected = targets(server);
+  if (action === 'check-conflicts') {
+    const paths = req.body?.paths || [];
+    if (!Array.isArray(paths) || !paths.length || paths.some((path) => !safe(path))) return send(res, 400, { error: 'Seleção inválida.' });
+    const inventories = await Promise.all(selected.map(async (target) => ({ target, files: await tree(target, category) })));
+    const conflicts = paths.flatMap((filePath) => {
+      const occurrences = inventories.flatMap(({ target, files }) => {
+        const match = files.find((file) => file.path === filePath);
+        return match ? [{ server: target, isDirectory: match.isDirectory }] : [];
+      });
+      return occurrences.length ? [{ path: filePath, servers: occurrences.map((item) => item.server), isDirectory: occurrences.some((item) => item.isDirectory) }] : [];
+    });
+    return send(res, 200, { conflicts });
+  }
   if (action === 'upload') { const files = req.body?.files || []; if (!Array.isArray(files) || !files.length) return send(res, 400, { error: 'Selecione os arquivos.' }); for (const file of files) { if (!safe(file.path || '') || !file.contentBase64) return send(res, 400, { error: 'Arquivo inválido.' }); const content = Buffer.from(file.contentBase64, 'base64'); if (!content.length || content.length > MAX) return send(res, 400, { error: 'Cada arquivo deve ter no máximo 8 MB.' }); await Promise.all(selected.map(async (target) => { await mkdir(target, category, file.path.split('/').slice(0, -1).join('/')); await ptero(`/api/client/servers/${id(target)}/files/write?file=${encodeURIComponent(full(category, file.path))}`, { method: 'POST', body: content, contentType: file.mime || 'application/octet-stream', text: true }); })); } }
   if (action === 'create-folder') { const folder = String(req.body?.path || ''); if (!safe(folder) || !folder) return send(res, 400, { error: 'Nome da pasta inválido.' }); await Promise.all(selected.map((target) => mkdir(target, category, folder))); }
   if (action === 'delete') { const paths = req.body?.paths || []; if (!Array.isArray(paths) || !paths.length || paths.some((path) => !safe(path))) return send(res, 400, { error: 'Seleção inválida.' }); await Promise.all(selected.map(async (target) => { for (const path of paths) await ptero(`/api/client/servers/${id(target)}/files/delete`, { method: 'POST', body: JSON.stringify({ root: ROOTS[category], files: [path] }), contentType: 'application/json' }); })); }
