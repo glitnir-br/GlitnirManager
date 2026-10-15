@@ -21,9 +21,7 @@ import Servidores from '@/pages/Servidores';
 import Jogadores from '@/pages/Jogadores';
 import Financeiro from '@/pages/Financeiro';
 import Mods from '@/pages/Mods';
-import AdminAccess from '@/pages/AdminAccess';
-import AdminSettings from '@/pages/AdminSettings';
-import SecuritySettings from '@/pages/SecuritySettings';
+import Administracao from '@/pages/Administracao';
 import UserProfile from '@/pages/UserProfile';
 import DeleteConfirmationProvider from '@/components/DeleteConfirmationProvider';
 
@@ -81,9 +79,10 @@ const AuthenticatedApp = () => {
         <Route path="/atelier" element={<Navigate to="/mods?tab=atelier" replace />} />
         <Route path="/mods" element={<Mods />} />
         <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
-        <Route path="/admin-access" element={<AdminAccess />} />
-        <Route path="/admin-settings" element={<AdminSettings />} />
-        <Route path="/security-settings" element={<SecuritySettings />} />
+        <Route path="/administracao" element={<Administracao />} />
+        <Route path="/admin-access" element={<Navigate to="/administracao" replace />} />
+        <Route path="/admin-settings" element={<Navigate to="/administracao?tab=configuracoes" replace />} />
+        <Route path="/security-settings" element={<Navigate to="/administracao?tab=seguranca" replace />} />
         <Route path="/profile" element={<UserProfile />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, X, Shield, Lock, UserCircle, ExternalLink, FolderCog, Server } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink, FolderCog, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -11,9 +11,7 @@ const allNavItems = [
   { label: 'Jogadores',       path: '/jogadores',        icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
-  { label: 'Gerenciar Acesso', path: '/admin-access',     icon: UserCircle,      roles: ['adm_principal', 'administrador'] },
-  { label: 'Configurações',   path: '/admin-settings',   icon: Shield,          roles: ['adm_principal'] },
-  { label: 'Segurança',       path: '/security-settings',icon: Lock,            roles: ['adm_principal'] },
+  { label: 'Administração',   path: '/administracao',    icon: Shield,          roles: ['adm_principal', 'administrador'] },
 ];
 
 export default function Sidebar({ open, setOpen }) {
