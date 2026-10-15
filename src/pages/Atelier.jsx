@@ -54,7 +54,7 @@ function ArtworkPreview({ file, className = '' }) {
   return file.previewUrl ? <img src={file.previewUrl} alt={file.name} className={className} /> : <ImageOff className="h-8 w-8 text-muted-foreground" />;
 }
 
-export default function Atelier() {
+export default function Atelier({ embedded = false }) {
   const queryClient = useQueryClient();
   const inputRef = useRef(null);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -104,7 +104,7 @@ export default function Atelier() {
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15"><Image className="h-5 w-5 text-primary" /></div><div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Atelier</h1><p className="mt-0.5 text-sm text-muted-foreground">{files.length} imagens encontradas nos servidores</p></div></div>
+      <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15"><Image className="h-5 w-5 text-primary" /></div><div>{!embedded && <h1 className="text-2xl font-bold text-foreground md:text-3xl">Atelier</h1>}<p className="mt-0.5 text-sm text-muted-foreground">{files.length} imagens encontradas nos servidores</p></div></div>
       <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => downloadMutation.mutate({})} disabled={!files.length || downloadMutation.isPending}><Download className="mr-2 h-4 w-4" />{downloadMutation.isPending ? 'Preparando...' : 'Baixar todas'}</Button><Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}><RefreshCw className={`mr-2 h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />{syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}</Button><Button onClick={() => setUploadOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar imagem</Button></div>
     </div>
     {message && <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">{message}</div>}

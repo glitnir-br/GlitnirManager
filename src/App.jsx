@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { AdminAuthProvider } from '@/lib/AdminAuthContext';
@@ -21,8 +21,7 @@ import Servidores from '@/pages/Servidores';
 import Players from '@/pages/Players';
 import Financas from '@/pages/Financas';
 import Banidos from '@/pages/Banidos';
-import Atelier from '@/pages/Atelier';
-import Arquivos from '@/pages/Arquivos';
+import Mods from '@/pages/Mods';
 import Despesas from '@/pages/Despesas';
 import AdminAccess from '@/pages/AdminAccess';
 import AdminSettings from '@/pages/AdminSettings';
@@ -79,8 +78,8 @@ const AuthenticatedApp = () => {
         <Route path="/players" element={<Players />} />
         <Route path="/financas" element={<Financas />} />
         <Route path="/banidos" element={<Banidos />} />
-        <Route path="/atelier" element={<Atelier />} />
-        <Route path="/mods" element={<Arquivos />} />
+        <Route path="/atelier" element={<Navigate to="/mods?tab=atelier" replace />} />
+        <Route path="/mods" element={<Mods />} />
         <Route path="/despesas" element={<Despesas />} />
         <Route path="/admin-access" element={<AdminAccess />} />
         <Route path="/admin-settings" element={<AdminSettings />} />
