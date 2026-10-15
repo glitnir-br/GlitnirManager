@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import dgram from 'node:dgram';
 
 const CONFIG_ROOT = '/BepInEx/config';
 const SERVERS = ['server_1', 'server_2'];
@@ -51,13 +52,68 @@ async function authenticate(req) {
   return { admin, profile, email: data.user.email };
 }
 
+const readCString = (buffer, offset) => {
+  const end = buffer.indexOf(0, offset);
+  return end < 0 ? null : { value: buffer.toString('utf8', offset, end), next: end + 1 };
+};
+
+function readPlayerCount(packet) {
+  // Resposta A2S_INFO: cabeçalho, tipo, protocolo, quatro strings e app id.
+  if (packet.length < 6 || packet[4] !== 0x49) return null;
+  let offset = 6;
+  for (let index = 0; index < 4; index += 1) {
+    const field = readCString(packet, offset);
+    if (!field) return null;
+    offset = field.next;
+  }
+  if (offset + 4 > packet.length) return null;
+  offset += 2; // app id
+  return { onlinePlayers: packet[offset], maxPlayers: packet[offset + 1] };
+}
+
+function queryValheim(ip, port) {
+  return new Promise((resolve) => {
+    const socket = dgram.createSocket('udp4');
+    const request = Buffer.concat([Buffer.from([0xff, 0xff, 0xff, 0xff, 0x54]), Buffer.from('Source Engine Query\0')]);
+    let retryWithChallenge = false;
+    let completed = false;
+    const finish = (value = null) => {
+      if (completed) return;
+      completed = true;
+      socket.close();
+      resolve(value);
+    };
+    const timeout = setTimeout(finish, 2500);
+
+    socket.once('error', () => { clearTimeout(timeout); finish(); });
+    socket.on('message', (packet) => {
+      const count = readPlayerCount(packet);
+      if (count) { clearTimeout(timeout); finish(count); return; }
+      // Alguns servidores exigem o desafio A2S antes de devolver as informações.
+      if (!retryWithChallenge && packet.length >= 9 && packet[4] === 0x41) {
+        retryWithChallenge = true;
+        socket.send(Buffer.concat([request, packet.subarray(5, 9)]), port, ip);
+      }
+    });
+    socket.send(request, port, ip);
+  });
+}
+
 async function statusFor(server, schedule = null) {
-  const [listingResult, resourcesResult] = await Promise.allSettled([
+  const [listingResult, resourcesResult, allocationsResult] = await Promise.allSettled([
     ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(CONFIG_ROOT)}`),
     ptero(`/api/client/servers/${serverId(server)}/resources`),
+    ptero(`/api/client/servers/${serverId(server)}/network/allocations`),
   ]);
   const listing = listingResult.status === 'fulfilled' ? listingResult.value : null;
   const resources = resourcesResult.status === 'fulfilled' ? resourcesResult.value : null;
+  const allocations = allocationsResult.status === 'fulfilled' ? allocationsResult.value?.data || [] : [];
+  const allocation = allocations.find((item) => (item.attributes || item).is_default) || allocations[0];
+  const allocationInfo = allocation?.attributes || allocation;
+  const queryPort = Number(allocationInfo?.port) + 1;
+  const playerCount = allocationInfo?.ip && Number.isInteger(queryPort)
+    ? await queryValheim(allocationInfo.ip_alias || allocationInfo.ip, queryPort)
+    : null;
   const entry = (listing?.data || []).map((item) => item.attributes || item).find((item) => item.name === 'maintenance');
   const effectiveAt = schedule?.effective_at ? new Date(schedule.effective_at) : null;
   const scheduled = Boolean(entry && entry.is_file !== false && effectiveAt && effectiveAt.getTime() > Date.now());
@@ -68,6 +124,8 @@ async function statusFor(server, schedule = null) {
     phase: scheduled ? 'scheduled' : entry && entry.is_file !== false ? 'active' : 'normal',
     scheduledAt: scheduled ? schedule.started_at : null,
     effectiveAt: scheduled ? schedule.effective_at : null,
+    onlinePlayers: playerCount?.onlinePlayers ?? null,
+    maxPlayers: playerCount?.maxPlayers ?? null,
   };
 }
 

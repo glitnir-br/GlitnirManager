@@ -304,7 +304,10 @@ export default function Dashboard() {
                 const powerState = status?.powerState || 'unavailable';
                 const phase = maintenancePhase(status, currentTime);
                 const maintenanceLabel = enabled === null || enabled === undefined ? 'Manutenção desconhecida' : phase === 'scheduled' ? `Agendada · ${countdownLabel(status.effectiveAt, currentTime)}` : enabled ? 'Em manutenção' : 'Sem manutenção';
-                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState} · {maintenanceLabel}</span>;
+                const playerCount = Number.isFinite(status?.onlinePlayers) && Number.isFinite(status?.maxPlayers)
+                  ? `${status.onlinePlayers}/${status.maxPlayers}`
+                  : null;
+                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState}{playerCount && ` · ${playerCount}`} · {maintenanceLabel}</span>;
               })}
             </div>
           </div>
