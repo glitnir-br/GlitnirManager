@@ -52,9 +52,18 @@ async function authenticate(req) {
 }
 
 async function statusFor(server) {
-  const listing = await ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(CONFIG_ROOT)}`);
+  const [listingResult, resourcesResult] = await Promise.allSettled([
+    ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(CONFIG_ROOT)}`),
+    ptero(`/api/client/servers/${serverId(server)}/resources`),
+  ]);
+  const listing = listingResult.status === 'fulfilled' ? listingResult.value : null;
+  const resources = resourcesResult.status === 'fulfilled' ? resourcesResult.value : null;
   const entry = (listing?.data || []).map((item) => item.attributes || item).find((item) => item.name === 'maintenance');
-  return { server, enabled: Boolean(entry && entry.is_file !== false) };
+  return {
+    server,
+    enabled: listing ? Boolean(entry && entry.is_file !== false) : null,
+    powerState: resources?.attributes?.current_state || 'unavailable',
+  };
 }
 
 export default async function handler(req, res) {
@@ -72,6 +81,7 @@ export default async function handler(req, res) {
 
     await Promise.all(targets(server).map(async (target) => {
       const current = await statusFor(target);
+      if (current.powerState !== 'running') throw new Error(`${target === 'server_1' ? 'Server 1' : 'Server 2'} precisa estar ligado para alterar a manutenção.`);
       if (enabled && !current.enabled) {
         await ptero(`/api/client/servers/${serverId(target)}/files/write?file=${encodeURIComponent(`${CONFIG_ROOT}/maintenance`)}`, { method: 'POST', body: '', contentType: 'text/plain' });
       }

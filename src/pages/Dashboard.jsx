@@ -39,6 +39,7 @@ import { SERVERS } from '@/lib/ServerContext';
 const SERVER_OPTIONS = [{ value: 'all', label: 'Todos os servidores' }, ...SERVERS];
 const SERVER_LABELS = Object.fromEntries(SERVERS.map((server) => [server.value, server.label]));
 const PIE_COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
+const POWER_STATE_LABELS = { running: 'Ligado', offline: 'Desligado', starting: 'Iniciando', stopping: 'Desligando', unavailable: 'Indisponível' };
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const recordDate = (record) => new Date(record.data || record.created_date);
@@ -100,7 +101,7 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
-  const maintenanceQuery = useQuery({ queryKey: ['server-maintenance'], queryFn: () => maintenanceApi({ action: 'status' }), ...queryOptions });
+  const maintenanceQuery = useQuery({ queryKey: ['server-maintenance'], queryFn: () => maintenanceApi({ action: 'status' }), ...queryOptions, refetchInterval: 15000, refetchIntervalInBackground: true });
 
   useEffect(() => {
     if (!syncMessage) return undefined;
@@ -181,6 +182,7 @@ export default function Dashboard() {
     ? maintenanceStatuses
     : maintenanceStatuses.filter((item) => item.server === maintenanceTarget);
   const targetHasMaintenance = targetStatuses.some((item) => item.enabled);
+  const targetCanManageMaintenance = targetStatuses.length > 0 && targetStatuses.every((item) => item.powerState === 'running');
 
   const now = new Date();
   const previousMonth = subMonths(now, 1);
@@ -274,17 +276,19 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2"><AlertTriangle className={`h-5 w-5 ${activeMaintenance.length ? 'text-amber-400' : 'text-muted-foreground'}`} /><h2 className="font-semibold text-foreground">Manutenção dos servidores</h2></div>
-            <p className="mt-1 text-sm text-muted-foreground">Controlada pelo arquivo <code className="text-foreground">/BepInEx/config/maintenance</code>.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Controlada pelo arquivo <code className="text-foreground">/BepInEx/config/maintenance</code>. O status é consultado automaticamente a cada 15 segundos.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {maintenanceQuery.isLoading ? <span className="text-xs text-muted-foreground">Verificando status...</span> : SERVERS.map(({ value, label }) => {
-                const enabled = maintenanceStatuses.find((item) => item.server === value)?.enabled;
-                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300'}`}>{label}: {enabled ? 'Em manutenção' : 'Online'}</span>;
+                const status = maintenanceStatuses.find((item) => item.server === value);
+                const enabled = status?.enabled;
+                const powerState = status?.powerState || 'unavailable';
+                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState} · {enabled === null || enabled === undefined ? 'Manutenção desconhecida' : enabled ? 'Em manutenção' : 'Sem manutenção'}</span>;
               })}
             </div>
           </div>
           {['adm_principal', 'administrador'].includes(user?.role) && <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="w-full sm:w-48"><Label className="mb-1.5 block text-xs text-muted-foreground">Aplicar em</Label><Select value={maintenanceTarget} onValueChange={setMaintenanceTarget}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os servidores</SelectItem><SelectItem value="server_1">Server 1</SelectItem><SelectItem value="server_2">Server 2</SelectItem></SelectContent></Select></div>
-            <div className="flex gap-2"><Button variant="outline" disabled={maintenanceMutation.isPending || targetStatuses.length === 0 || targetStatuses.every((item) => item.enabled)} onClick={() => setMaintenanceConfirmation(true)}>Ativar</Button><Button variant="destructive" disabled={maintenanceMutation.isPending || !targetHasMaintenance} onClick={() => setMaintenanceConfirmation(false)}>Desativar</Button></div>
+            <div className="flex gap-2"><Button variant="outline" title={targetCanManageMaintenance ? undefined : 'O servidor precisa estar ligado para alterar a manutenção.'} disabled={maintenanceMutation.isPending || !targetCanManageMaintenance || targetStatuses.every((item) => item.enabled)} onClick={() => setMaintenanceConfirmation(true)}>Ativar</Button><Button variant="destructive" title={targetCanManageMaintenance ? undefined : 'O servidor precisa estar ligado para alterar a manutenção.'} disabled={maintenanceMutation.isPending || !targetCanManageMaintenance || !targetHasMaintenance} onClick={() => setMaintenanceConfirmation(false)}>Desativar</Button></div>
           </div>}
         </div>
       </div>
