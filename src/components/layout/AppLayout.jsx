@@ -11,7 +11,7 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { server, setServer } = useServer();
   const location = useLocation();
-  const hidesServerSelector = ['/', '/servidores', '/financas', '/despesas', '/admin-access', '/admin-settings', '/security-settings'].includes(location.pathname);
+  const hidesServerSelector = ['/', '/servidores', '/financeiro', '/financas', '/despesas', '/admin-access', '/admin-settings', '/security-settings'].includes(location.pathname);
 
   return (
     <div className="min-h-screen bg-background">

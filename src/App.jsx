@@ -19,10 +19,9 @@ import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Servidores from '@/pages/Servidores';
 import Players from '@/pages/Players';
-import Financas from '@/pages/Financas';
+import Financeiro from '@/pages/Financeiro';
 import Banidos from '@/pages/Banidos';
 import Mods from '@/pages/Mods';
-import Despesas from '@/pages/Despesas';
 import AdminAccess from '@/pages/AdminAccess';
 import AdminSettings from '@/pages/AdminSettings';
 import SecuritySettings from '@/pages/SecuritySettings';
@@ -76,11 +75,12 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/servidores" element={<Servidores />} />
         <Route path="/players" element={<Players />} />
-        <Route path="/financas" element={<Financas />} />
+        <Route path="/financeiro" element={<Financeiro />} />
+        <Route path="/financas" element={<Navigate to="/financeiro" replace />} />
         <Route path="/banidos" element={<Banidos />} />
         <Route path="/atelier" element={<Navigate to="/mods?tab=atelier" replace />} />
         <Route path="/mods" element={<Mods />} />
-        <Route path="/despesas" element={<Despesas />} />
+        <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
         <Route path="/admin-access" element={<AdminAccess />} />
         <Route path="/admin-settings" element={<AdminSettings />} />
         <Route path="/security-settings" element={<SecuritySettings />} />

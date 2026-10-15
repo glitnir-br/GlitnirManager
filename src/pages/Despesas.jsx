@@ -34,7 +34,7 @@ const emptyForm = () => ({ descricao: '', valor: '', categoria: '', categoriaPer
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const expenseDate = (expense) => expense.data ? parseISO(expense.data) : new Date(expense.created_date);
 
-export default function Despesas() {
+export default function Despesas({ embedded = false }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -142,7 +142,7 @@ export default function Despesas() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground md:text-3xl">Despesas</h1>
+              {!embedded && <h1 className="text-2xl font-bold text-foreground md:text-3xl">Despesas</h1>}
               <p className="mt-1 text-sm text-muted-foreground">Controle de pagamentos e custos do servidor</p>
             </div>
             <Button onClick={() => setDialogOpen(true)} className="bg-red-600 text-white hover:bg-red-700"><Plus className="mr-2 h-4 w-4" />Nova despesa</Button>

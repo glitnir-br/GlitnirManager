@@ -79,7 +79,7 @@ const playerCharacters = (player) => {
 
 const playerName = (player) => playerCharacters(player).join(', ') || 'Sem personagem';
 
-export default function Financas() {
+export default function Financas({ embedded = false }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [playerPickerOpen, setPlayerPickerOpen] = useState(false);
@@ -295,7 +295,7 @@ export default function Financas() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground md:text-3xl">Doações</h1>
+              {!embedded && <h1 className="text-2xl font-bold text-foreground md:text-3xl">Doações</h1>}
               <p className="mt-1 text-sm text-muted-foreground">
                 Total:{' '}
                 <span className="font-mono font-semibold text-green-400">R$ {formatMoney(total)}</span>
