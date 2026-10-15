@@ -19,52 +19,39 @@ async function sync(admin, category) { const [one, two] = await Promise.all([tre
   const { error } = await admin.from('server_file_syncs').upsert({ category, synced_at: new Date().toISOString() }, { onConflict: 'category' }); if (error) throw error;
 }
 async function syncMods(admin) {
-  const { data: files, error } = await admin.from('server_files').select('category,path,servers').eq('is_directory', false);
+  const { data: files, error } = await admin.from('server_files').select('category,path,servers,is_directory');
   if (error) throw error;
-  const manifests = new Map();
-  const manifestRecords = [];
-  const manifestsByName = new Map();
-  const keyFor = (server, category, directory) => `${server}:${category}:${directory}`;
-  const baseName = (path) => path.split('/').pop().replace(/\.dll$/i, '').toLowerCase();
-  for (const file of files || []) if (/^manifest(?:\.json)?$/i.test(file.path.split('/').pop() || '')) for (const server of file.servers || []) {
+  const manifestFiles = new Map();
+  for (const file of files || []) if (!file.is_directory && /^manifest(?:\.json)?$/i.test(file.path.split('/').pop() || '')) {
+    const folderName = file.path.split('/')[0];
+    for (const server of file.servers || []) manifestFiles.set(`${server}:${file.category}:${folderName.toLowerCase()}`, file.path);
+  }
+  const records = [];
+  const folders = (files || []).filter((file) => file.is_directory && !file.path.includes('/') && file.path.includes('-'));
+  for (const folder of folders) for (const server of folder.servers || []) {
+    const folderName = folder.path;
+    const separator = folderName.indexOf('-');
+    const creator = folderName.slice(0, separator).trim() || 'Não informado';
+    const fallbackName = folderName.slice(separator + 1).trim() || folderName;
+    const manifestPath = manifestFiles.get(`${server}:${folder.category}:${folderName.toLowerCase()}`);
+    let name = fallbackName;
+    let version = 'Versão indisponível';
+    let valid = false;
     try {
-      const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(file.category, file.path))}`, { text: true });
+      if (!manifestPath) throw new Error('Manifest não encontrado');
+      const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(folder.category, manifestPath))}`, { text: true });
       const json = JSON.parse(content);
       if (typeof json.name === 'string' && typeof json.version_number === 'string') {
-        const folder = file.path.split('/').slice(0, -1).pop() || '';
-        const creator = folder.includes('-') ? folder.split('-')[0].trim() || 'Não informado' : 'Não informado';
-        const manifest = { name: json.name, version: json.version_number };
-        manifests.set(keyFor(server, file.category, file.path.split('/').slice(0, -1).join('/')), manifest);
-        manifestsByName.set(`${server}:${json.name.toLowerCase()}`, manifest);
-        manifestRecords.push({ ...manifest, creator, category: file.category, server, manifest_path: file.path });
+        name = json.name.trim(); version = json.version_number.trim(); valid = Boolean(name && version);
       }
-    } catch (readError) { console.warn(`Manifest inválido: ${file.path}`, readError.message); }
-  }
-  const manifestFor = (server, category, filePath) => {
-    const parts = filePath.split('/').slice(0, -1);
-    for (let index = parts.length; index >= 0; index -= 1) {
-      const manifest = manifests.get(keyFor(server, category, parts.slice(0, index).join('/')));
-      if (manifest) return manifest;
-    }
-    return null;
-  };
-  const pluginDlls = new Map();
-  for (const file of files || []) if (file.category === 'plugins' && /\.dll$/i.test(file.path)) for (const server of file.servers || []) {
-    const manifest = manifestFor(server, 'plugins', file.path);
-    if (manifest) pluginDlls.set(`${server}:${baseName(file.path)}`, manifest);
-  }
-  const records = [...manifestRecords];
-  for (const file of files || []) if (/\.dll$/i.test(file.path)) for (const server of file.servers || []) {
-    const manifest = manifestFor(server, file.category, file.path) || pluginDlls.get(`${server}:${baseName(file.path)}`) || manifestsByName.get(`${server}:${baseName(file.path)}`);
-    const folder = file.path.split('/').slice(0, -1).pop() || '';
-    const creator = folder.includes('-') ? folder.split('-')[0].trim() || 'Não informado' : 'Não informado';
-    records.push({ name: manifest?.name || file.path.split('/').pop().replace(/\.dll$/i, ''), version: manifest?.version || 'Versão indisponível', creator, category: file.category, server, manifest_path: file.path });
+    } catch (readError) { console.warn(`Manifest não lido: ${folder.category}/${folderName}`, readError.message); }
+    records.push({ package_key: folderName.toLowerCase(), folder_name: folderName, name, version, creator, category: folder.category, server, manifest_path: manifestPath || `${folderName}/manifest.json`, manifest_valid: valid });
   }
   const { error: clearError } = await admin.from('server_mod_manifests').delete().neq('name', ''); if (clearError) throw clearError;
   if (records.length) { const { error: insertError } = await admin.from('server_mod_manifests').insert(records); if (insertError) throw insertError; }
 }
 async function mkdir(server, category, folder) { if (!folder) return; const parts = folder.split('/'); let current = ''; for (const part of parts) { current = current ? `${current}/${part}` : part; try { await ptero(`/api/client/servers/${id(server)}/files/create-folder`, { method: 'POST', body: JSON.stringify({ root: full(category, current.split('/').slice(0, -1).join('/')), name: part }), contentType: 'application/json' }); } catch (error) { if (!/409|exist/i.test(error.message)) throw error; } } }
-export default async function handler(req, res) { if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' }); try { const admin = await auth(req); const action = req.body?.action || 'list'; const category = req.body?.category; if (action === 'sync-all') { await Promise.all(Object.keys(ROOTS).map((item) => sync(admin, item))); await syncMods(admin); return send(res, 200, { success: true }); } if (action === 'list' && category === 'mods') { const { data: rows, error } = await admin.from('server_mod_manifests').select('*').order('name'); if (error) throw error; const grouped = new Map(); for (const row of rows || []) { const mod = grouped.get(row.name) || { name: row.name, authors: new Set(), versions: new Map(), servers: new Set(), locations: new Set() }; const version = mod.versions.get(row.version) || { version: row.version, servers: new Set(), locations: new Set() }; version.servers.add(row.server); version.locations.add(row.category); mod.authors.add(row.creator || 'Não informado'); mod.versions.set(row.version, version); mod.servers.add(row.server); mod.locations.add(row.category); grouped.set(row.name, mod); } const mods = [...grouped.values()].map((mod) => ({ name: mod.name, authors: [...mod.authors], versions: [...mod.versions.values()].map((version) => ({ version: version.version, servers: [...version.servers], locations: [...version.locations] })), servers: [...mod.servers], locations: [...mod.locations], divergent: mod.versions.size > 1 })); const { data: syncInfo } = await admin.from('server_file_syncs').select('synced_at').order('synced_at', { ascending: false }).limit(1).maybeSingle(); return send(res, 200, { files: mods, syncedAt: syncInfo?.synced_at || null }); } if (!ROOTS[category]) return send(res, 400, { error: 'Categoria inválida.' }); if (action === 'sync') { await sync(admin, category); }
+export default async function handler(req, res) { if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' }); try { const admin = await auth(req); const action = req.body?.action || 'list'; const category = req.body?.category; if (action === 'sync-all') { await Promise.all(Object.keys(ROOTS).map((item) => sync(admin, item))); await syncMods(admin); return send(res, 200, { success: true }); } if (action === 'list' && category === 'mods') { const { data: rows, error } = await admin.from('server_mod_manifests').select('*').order('folder_name'); if (error) throw error; const grouped = new Map(); for (const row of rows || []) { const mod = grouped.get(row.package_key) || { packageKey: row.package_key, folderName: row.folder_name, names: new Set(), authors: new Set(), versions: new Map(), servers: new Set(), locations: new Set(), invalidManifest: false }; const versionKey = `${row.name}\0${row.version}`; const version = mod.versions.get(versionKey) || { name: row.name, version: row.version, servers: new Set(), locations: new Set() }; version.servers.add(row.server); version.locations.add(row.category); mod.names.add(row.name); mod.authors.add(row.creator || 'Não informado'); mod.versions.set(versionKey, version); mod.servers.add(row.server); mod.locations.add(row.category); mod.invalidManifest ||= row.manifest_valid === false; grouped.set(row.package_key, mod); } const mods = [...grouped.values()].map((mod) => ({ packageKey: mod.packageKey, folderName: mod.folderName, name: [...mod.names][0] || mod.folderName, names: [...mod.names], authors: [...mod.authors], versions: [...mod.versions.values()].map((version) => ({ name: version.name, version: version.version, servers: [...version.servers], locations: [...version.locations] })), servers: [...mod.servers], locations: [...mod.locations], divergent: mod.versions.size > 1 || mod.invalidManifest, invalidManifest: mod.invalidManifest })); const { data: syncInfo } = await admin.from('server_file_syncs').select('synced_at').order('synced_at', { ascending: false }).limit(1).maybeSingle(); return send(res, 200, { files: mods, syncedAt: syncInfo?.synced_at || null }); } if (!ROOTS[category]) return send(res, 400, { error: 'Categoria inválida.' }); if (action === 'sync') { await sync(admin, category); }
   if (action === 'list' || action === 'sync') { const path = String(req.body?.path || ''); if (!safe(path)) return send(res, 400, { error: 'Caminho inválido.' }); const parent = path ? `${path}/` : ''; const { data: rows, error } = await admin.from('server_files').select('*').eq('category', category).order('is_directory', { ascending: false }).order('path'); if (error) throw error; const files = (rows || []).filter((row) => row.path.startsWith(parent) && !row.path.slice(parent.length).includes('/')); const { data: syncInfo } = await admin.from('server_file_syncs').select('synced_at').eq('category', category).maybeSingle(); return send(res, 200, { files, syncedAt: syncInfo?.synced_at || null }); }
   const server = req.body?.server; if (!['server_1', 'server_2', 'todos'].includes(server)) return send(res, 400, { error: 'Servidor inválido.' });
   if (action === 'read') { const filePath = String(req.body?.path || ''); const fileExtension = filePath.split('.').pop()?.toLowerCase(); if (!safe(filePath) || !TEXT_EXTENSIONS.has(fileExtension) || server === 'todos') return send(res, 400, { error: 'Selecione um arquivo de texto e um servidor válido.' }); const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(category, filePath))}`, { text: true }); if (content.length > 1024 * 1024) return send(res, 413, { error: 'O arquivo é grande demais para pré-visualização (limite de 1 MB).' }); return send(res, 200, { content }); }
