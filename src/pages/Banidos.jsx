@@ -33,7 +33,7 @@ const formatLatestSync = (records, field) => {
   return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
 };
 
-export default function Banidos() {
+export default function Banidos({ embedded = false }) {
   const { server, serverLabel } = useServer();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -169,7 +169,7 @@ export default function Banidos() {
               <ShieldBan className="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Lista de Banidos</h1>
+              {!embedded && <h1 className="text-2xl md:text-3xl font-bold text-foreground">Lista de Banidos</h1>}
               <p className="text-muted-foreground text-sm mt-0.5">{banidos.length} banimentos registrados no {serverLabel}</p>
             </div>
           </div>

@@ -264,7 +264,13 @@ export default async function handler(req, res) {
       if (error) throw error;
     }
 
-    if (requestedSteamId) await admin.from('security_logs').insert({ action: 'pterodactyl_whitelist_add', user_email: authData.user.email, performed_by: authData.user.email, details: `Steam ID ${requestedSteamId} ${addedToPterodactyl ? 'adicionado à' : 'já presente na'} whitelist do ${server}.`, timestamp: new Date().toISOString() });
+    let requestedPlayer = null;
+    if (requestedSteamId) {
+      const { data: player, error: playerError } = await admin.from('players').select('*').eq('server', server).eq('steamid', requestedSteamId).limit(1).maybeSingle();
+      if (playerError) throw playerError;
+      requestedPlayer = player;
+      await admin.from('security_logs').insert({ action: 'pterodactyl_whitelist_add', user_email: authData.user.email, performed_by: authData.user.email, details: `Steam ID ${requestedSteamId} ${addedToPterodactyl ? 'adicionado à' : 'já presente na'} whitelist do ${server}.`, timestamp: new Date().toISOString() });
+    }
     return send(res, 200, {
       server,
       whitelist: whitelist.length,
@@ -279,6 +285,7 @@ export default async function handler(req, res) {
       unmatchedCharacterFiles: parsedCharacters.ignored.slice(0, 20),
       syncedAt,
       addedToPterodactyl,
+      player: requestedPlayer,
     });
   } catch (error) {
     console.error('Falha ao sincronizar whitelist:', error);

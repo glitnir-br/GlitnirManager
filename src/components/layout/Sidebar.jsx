@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, ShieldBan, X, Shield, Lock, UserCircle, ExternalLink, FolderCog, Server } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, X, Shield, Lock, UserCircle, ExternalLink, FolderCog, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -10,8 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const allNavItems = [
   { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Servidores',      path: '/servidores',       icon: Server,          roles: ['adm_principal', 'administrador'] },
-  { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
-  { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'visitante'] },
+  { label: 'Jogadores',       path: '/jogadores',        icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Gerenciar Acesso', path: '/admin-access',     icon: UserCircle,      roles: ['adm_principal', 'administrador'] },
@@ -68,7 +67,6 @@ export default function Sidebar({ open, setOpen }) {
           </div>}
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
-            const isBanidos = item.path === '/banidos';
             return (
               <Link
                 key={item.path}
@@ -76,8 +74,6 @@ export default function Sidebar({ open, setOpen }) {
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
-                  isActive && isBanidos ?
-                  "bg-red-500/15 text-red-400 shadow-[0_0_20px_-5px_rgba(239,68,68,0.3)]" :
                   isActive ?
                   "bg-primary/15 text-primary shadow-[0_0_20px_-5px_hsl(270,70%,55%,0.3)]" :
                   "text-muted-foreground hover:text-foreground hover:bg-secondary"

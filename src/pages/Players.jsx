@@ -26,7 +26,7 @@ const formatLatestSync = (records, field) => {
   return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
 };
 
-export default function Players() {
+export default function Players({ embedded = false }) {
   const { server, serverLabel } = useServer();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -60,7 +60,22 @@ export default function Players() {
       if (!response.ok) throw new Error(result.error || 'Falha ao adicionar o player à whitelist.');
       return result;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
+    onSuccess: (result) => {
+      if (result.player) {
+        queryClient.setQueryData(['players', server], (current = []) => {
+          const existingIndex = current.findIndex((player) => player.id === result.player.id || player.steamid === result.player.steamid);
+          const next = existingIndex >= 0
+            ? current.map((player, index) => index === existingIndex ? result.player : player)
+            : [...current, result.player];
+          setSearch('');
+          setStatusFilter('all');
+          setGuildFilter('all');
+          setPage(Math.max(1, Math.ceil(next.length / pageSize)));
+          return next;
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['players', server] });
+    },
   });
 
   const updateMutation = useMutation({
@@ -174,7 +189,7 @@ export default function Players() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Players</h1>
+          {!embedded && <h1 className="text-2xl md:text-3xl font-bold text-foreground">Players</h1>}
           <p className="text-muted-foreground text-sm mt-1">{players.length} jogadores cadastrados no {serverLabel}</p>
         </div>
         <div className="flex flex-wrap items-start gap-2">
