@@ -77,7 +77,7 @@ const AuthenticatedApp = () => {
         <Route path="/financas" element={<Financas />} />
         <Route path="/banidos" element={<Banidos />} />
         <Route path="/atelier" element={<Atelier />} />
-        <Route path="/arquivos" element={<Arquivos />} />
+        <Route path="/mods" element={<Arquivos />} />
         <Route path="/despesas" element={<Despesas />} />
         <Route path="/admin-access" element={<AdminAccess />} />
         <Route path="/admin-settings" element={<AdminSettings />} />

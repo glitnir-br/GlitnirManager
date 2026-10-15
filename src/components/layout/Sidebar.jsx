@@ -12,7 +12,7 @@ const allNavItems = [
   { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Atelier',         path: '/atelier',          icon: Image,           roles: ['adm_principal', 'administrador', 'visitante'] },
-  { label: 'Arquivos',        path: '/arquivos',         icon: FolderCog,       roles: ['adm_principal', 'administrador'] },
+  { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador'] },
   { label: 'Doações / GC',   path: '/financas',         icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Despesas',        path: '/despesas',         icon: TrendingDown,    roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Gerenciar Acesso', path: '/admin-access',     icon: UserCircle,      roles: ['adm_principal', 'administrador'] },
@@ -56,7 +56,7 @@ export default function Sidebar({ open, setOpen }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {!['/', '/atelier', '/arquivos', '/financas', '/despesas', '/admin-access', '/admin-settings', '/security-settings'].includes(location.pathname) && <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          {!['/', '/atelier', '/mods', '/financas', '/despesas', '/admin-access', '/admin-settings', '/security-settings'].includes(location.pathname) && <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Visualizando servidor</p>
             <Select value={server} onValueChange={setServer}>
               <SelectTrigger className="h-9 w-full bg-card font-semibold text-foreground">
