@@ -19,15 +19,35 @@ async function sync(admin, category) { const [one, two] = await Promise.all([tre
   const { error } = await admin.from('server_file_syncs').upsert({ category, synced_at: new Date().toISOString() }, { onConflict: 'category' }); if (error) throw error;
 }
 async function syncMods(admin) {
-  const { data: manifests, error } = await admin.from('server_files').select('category,path,servers').eq('is_directory', false).ilike('path', '%manifest.json');
+  const { data: files, error } = await admin.from('server_files').select('category,path,servers').eq('is_directory', false);
   if (error) throw error;
-  const records = [];
-  for (const manifest of manifests || []) for (const server of manifest.servers || []) {
+  const manifests = new Map();
+  const keyFor = (server, category, directory) => `${server}:${category}:${directory}`;
+  const baseName = (path) => path.split('/').pop().replace(/\.dll$/i, '').toLowerCase();
+  for (const file of files || []) if (/^manifest(?:\.json)?$/i.test(file.path.split('/').pop() || '')) for (const server of file.servers || []) {
     try {
-      const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(manifest.category, manifest.path))}`, { text: true });
+      const content = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(full(file.category, file.path))}`, { text: true });
       const json = JSON.parse(content);
-      if (typeof json.name === 'string' && typeof json.version_number === 'string') records.push({ name: json.name, version: json.version_number, category: manifest.category, server, manifest_path: manifest.path });
-    } catch (readError) { console.warn(`Manifest inválido: ${manifest.path}`, readError.message); }
+      if (typeof json.name === 'string' && typeof json.version_number === 'string') manifests.set(keyFor(server, file.category, file.path.split('/').slice(0, -1).join('/')), { name: json.name, version: json.version_number });
+    } catch (readError) { console.warn(`Manifest inválido: ${file.path}`, readError.message); }
+  }
+  const manifestFor = (server, category, filePath) => {
+    const parts = filePath.split('/').slice(0, -1);
+    for (let index = parts.length; index >= 0; index -= 1) {
+      const manifest = manifests.get(keyFor(server, category, parts.slice(0, index).join('/')));
+      if (manifest) return manifest;
+    }
+    return null;
+  };
+  const pluginDlls = new Map();
+  for (const file of files || []) if (file.category === 'plugins' && /\.dll$/i.test(file.path)) for (const server of file.servers || []) {
+    const manifest = manifestFor(server, 'plugins', file.path);
+    if (manifest) pluginDlls.set(`${server}:${baseName(file.path)}`, manifest);
+  }
+  const records = [];
+  for (const file of files || []) if (/\.dll$/i.test(file.path)) for (const server of file.servers || []) {
+    const manifest = manifestFor(server, file.category, file.path) || pluginDlls.get(`${server}:${baseName(file.path)}`);
+    records.push({ name: manifest?.name || file.path.split('/').pop().replace(/\.dll$/i, ''), version: manifest?.version || 'Versão indisponível', category: file.category, server, manifest_path: file.path });
   }
   const { error: clearError } = await admin.from('server_mod_manifests').delete().neq('name', ''); if (clearError) throw clearError;
   if (records.length) { const { error: insertError } = await admin.from('server_mod_manifests').insert(records); if (insertError) throw insertError; }

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/api/dbClient';
 
-const tabs = [{ value: 'plugins', label: 'Plugins' }, { value: 'whitelist', label: 'Whitelist' }, { value: 'greylist', label: 'Greylist' }, { value: 'mods', label: 'Mods' }];
+const tabs = [{ value: 'mods', label: 'Mods' }, { value: 'plugins', label: 'Plugins' }, { value: 'whitelist', label: 'Whitelist' }, { value: 'greylist', label: 'Greylist' }];
 const roots = { plugins: '/BepInEx/plugins', whitelist: '/BepInEx/config/AzuAntiCheat/Whitelist', greylist: '/BepInEx/config/AzuAntiCheat/Greylist' };
 const textExtensions = new Set(['txt', 'json', 'md', 'yml', 'yaml', 'cfg', 'conf', 'ini', 'log', 'xml', 'csv', 'properties']);
 const extension = (filePath) => filePath.split('.').pop()?.toLowerCase() || '';
@@ -22,7 +22,7 @@ async function entryFiles(entry, prefix = '') { if (entry.isFile) return new Pro
 
 export default function Arquivos() {
   const queryClient = useQueryClient(); const inputRef = useRef(null); const folderRef = useRef(null);
-  const [category, setCategory] = useState('plugins'); const [path, setPath] = useState(''); const [selected, setSelected] = useState([]); const [server, setServer] = useState('todos'); const [filesToSend, setFilesToSend] = useState([]); const [uploadOpen, setUploadOpen] = useState(false); const [folderOpen, setFolderOpen] = useState(false); const [folderName, setFolderName] = useState(''); const [message, setMessage] = useState(''); const [dragging, setDragging] = useState(false); const [preview, setPreview] = useState(null);
+  const [category, setCategory] = useState('mods'); const [path, setPath] = useState(''); const [selected, setSelected] = useState([]); const [server, setServer] = useState('todos'); const [filesToSend, setFilesToSend] = useState([]); const [uploadOpen, setUploadOpen] = useState(false); const [folderOpen, setFolderOpen] = useState(false); const [folderName, setFolderName] = useState(''); const [message, setMessage] = useState(''); const [dragging, setDragging] = useState(false); const [preview, setPreview] = useState(null);
   const key = ['server-files', category, path]; const { data, isLoading, error } = useQuery({ queryKey: key, queryFn: () => api({ action: 'list', category, path }) }); const refresh = () => queryClient.invalidateQueries({ queryKey: ['server-files', category] });
   const sync = useMutation({ mutationFn: () => api({ action: 'sync-all', category }), onSuccess: () => { setMessage('Plugins, Whitelist e Greylist foram sincronizados.'); setSelected([]); refresh(); }, onError: (e) => setMessage(e.message) });
   const execute = useMutation({ mutationFn: (body) => api({ category, server, ...body }), onSuccess: () => { setUploadOpen(false); setFolderOpen(false); setFilesToSend([]); setFolderName(''); setSelected([]); setMessage('Alterações concluídas.'); refresh(); }, onError: (e) => setMessage(e.message) });
