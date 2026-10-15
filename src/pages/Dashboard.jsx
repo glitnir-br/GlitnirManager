@@ -122,6 +122,11 @@ export default function Dashboard() {
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const scheduledServers = (maintenanceQuery.data?.servers || []).filter((item) => item.phase === 'scheduled');
+    if (maintenanceTarget === 'todos' && scheduledServers.length === 1) setMaintenanceTarget(scheduledServers[0].server);
+  }, [maintenanceQuery.data, maintenanceTarget]);
+
   const globalSyncMutation = useMutation({
     mutationFn: async () => {
       if (!supabase) throw new Error('A sincronização exige conexão com o Supabase.');

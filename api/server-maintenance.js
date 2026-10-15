@@ -101,13 +101,7 @@ export default async function handler(req, res) {
     if (action === 'set' && enabled && currentStatuses.some((status) => status.enabled)) return send(res, 400, { error: 'Selecione apenas servidores sem manutenção para iniciar uma nova contagem.' });
     if (action === 'set' && !enabled && currentStatuses.some((status) => status.phase !== 'active')) return send(res, 400, { error: 'Use “Abortar manutenção” enquanto a contagem de 5 minutos estiver ativa.' });
 
-    if (action === 'abort') {
-      const invalid = selectedServers.find((target) => {
-        const schedule = byServer.get(target);
-        return !schedule || new Date(schedule.effective_at).getTime() <= Date.now();
-      });
-      if (invalid) return send(res, 400, { error: `${invalid === 'server_1' ? 'Server 1' : 'Server 2'} não possui uma manutenção que possa ser abortada.` });
-    }
+    if (action === 'abort' && currentStatuses.some((status) => status.phase !== 'scheduled')) return send(res, 400, { error: 'A manutenção não possui uma contagem ativa que possa ser abortada.' });
 
     const now = new Date();
     const effectiveAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
