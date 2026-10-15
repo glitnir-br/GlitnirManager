@@ -143,14 +143,10 @@ export default async function handler(req, res) {
     const action = req.body?.action || 'status';
     if (action === 'status') return send(res, 200, { servers: await allStatuses(admin) });
 
-    if (!['set', 'abort', 'power', 'websocket'].includes(action)) return send(res, 400, { error: 'Ação inválida.' });
+    if (!['set', 'abort', 'power'].includes(action)) return send(res, 400, { error: 'Ação inválida.' });
     if (!ADMIN_ROLES.has(profile.role)) return send(res, 403, { error: 'Somente administradores podem alterar a manutenção.' });
     const server = req.body?.server;
     const enabled = req.body?.enabled;
-    if (action === 'websocket') {
-      if (!SERVERS.includes(server)) return send(res, 400, { error: 'Servidor inválido.' });
-      return send(res, 200, await ptero(`/api/client/servers/${serverId(server)}/websocket`));
-    }
     if (action === 'power') {
       const signal = req.body?.signal;
       if (!SERVERS.includes(server) || !['start', 'restart', 'stop'].includes(signal)) return send(res, 400, { error: 'Comando do servidor inválido.' });

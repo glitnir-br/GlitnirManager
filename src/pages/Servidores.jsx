@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Power, RotateCcw, Terminal } from 'lucide-react';
+import { Loader2, Power, RotateCcw, Server, Users, Wrench } from 'lucide-react';
 import { supabase } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,9 +29,6 @@ export default function Servidores() {
   const queryClient = useQueryClient();
   const [confirmation, setConfirmation] = useState(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const [consoleOutput, setConsoleOutput] = useState({});
-  const [consoleError, setConsoleError] = useState({});
-  const socketRef = useRef([]);
   const statusQuery = useQuery({ queryKey: ['server-maintenance'], queryFn: () => serverApi({ action: 'status' }), staleTime: 0, refetchInterval: 15000, refetchIntervalInBackground: true });
   const statuses = statusQuery.data?.servers || [];
 
@@ -49,36 +46,11 @@ export default function Servidores() {
     return () => window.clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    socketRef.current = [];
-    SERVERS.forEach(({ value: server }) => {
-      setConsoleOutput((current) => ({ ...current, [server]: 'Conectando ao console...\n' }));
-      serverApi({ action: 'websocket', server }).then((result) => {
-        const credentials = result?.data || result;
-        if (cancelled || !credentials?.socket || !credentials?.token) throw new Error('Credenciais do console indisponíveis.');
-        const socketUrl = window.location.protocol === 'https:' ? credentials.socket.replace(/^ws:/, 'wss:') : credentials.socket;
-        const socket = new WebSocket(socketUrl);
-        socketRef.current.push(socket);
-        socket.onopen = () => socket.send(JSON.stringify({ event: 'auth', args: [credentials.token] }));
-        socket.onmessage = ({ data }) => {
-          try {
-            const message = JSON.parse(data);
-            if (message.event === 'console output') setConsoleOutput((current) => ({ ...current, [server]: `${current[server] || ''}${message.args?.[0] || ''}`.slice(-20000) }));
-            if (message.event === 'auth success') setConsoleOutput((current) => ({ ...current, [server]: (current[server] || '').replace('Conectando ao console...\n', '') }));
-          } catch { /* Ignora mensagens não estruturadas do socket. */ }
-        };
-        socket.onerror = () => setConsoleError((current) => ({ ...current, [server]: 'O WebSocket seguro (wss://) do Pterodactyl não está disponível.' }));
-      }).catch((error) => { if (!cancelled) setConsoleError((current) => ({ ...current, [server]: error.message })); });
-    });
-    return () => { cancelled = true; socketRef.current.forEach((socket) => socket.close()); socketRef.current = []; };
-  }, []);
-
   const commandLabel = (signal) => ({ start: 'Ligar', restart: 'Reiniciar', stop: 'Desligar' }[signal]);
   const maintenanceLabel = (action) => ({ schedule: 'Ativar manutenção', abort: 'Abortar manutenção', deactivate: 'Desativar manutenção' }[action]);
 
   return <div className="space-y-6">
-    <div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Servidores</h1><p className="mt-1 text-sm text-muted-foreground">Controle operacional e console em tempo real do Pterodactyl.</p></div>
+    <div><h1 className="text-2xl font-bold text-foreground md:text-3xl">Servidores</h1><p className="mt-1 text-sm text-muted-foreground">Controle individual de energia, ocupação e manutenção.</p></div>
     {powerMutation.error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{powerMutation.error.message}</div>}
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">{SERVERS.map(({ value, label }) => {
       const status = statuses.find((item) => item.server === value);
@@ -86,7 +58,7 @@ export default function Servidores() {
       const playerCount = Number.isFinite(status?.onlinePlayers) && Number.isFinite(status?.maxPlayers) ? `${status.onlinePlayers}/${status.maxPlayers}` : '—';
       const phase = maintenancePhase(status, currentTime);
       const maintenanceText = status?.enabled === null || status?.enabled === undefined ? 'Manutenção desconhecida' : phase === 'scheduled' ? `Agendada · ${countdownLabel(status.effectiveAt, currentTime)}` : status.enabled ? 'Em manutenção' : 'Sem manutenção';
-      return <section key={value} className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{label}</h2><p className="mt-1 text-sm text-muted-foreground">Players online: <span className="font-medium text-foreground">{playerCount}</span></p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${state === 'running' ? 'bg-green-500/15 text-green-300' : state === 'offline' ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'}`}>{POWER_STATE_LABELS[state] || state}</span></div><div className="mt-4 rounded-lg bg-secondary/60 px-3 py-2 text-sm text-muted-foreground">{maintenanceText}</div><div className="mt-5 grid grid-cols-3 gap-2"><Button size="sm" disabled={powerMutation.isPending || state === 'running' || state === 'starting'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'start' })}><Power className="mr-1.5 h-3.5 w-3.5" />Ligar</Button><Button size="sm" variant="outline" disabled={powerMutation.isPending || state !== 'running'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'restart' })}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reiniciar</Button><Button size="sm" variant="destructive" disabled={powerMutation.isPending || state !== 'running'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'stop' })}>Desligar</Button></div>{state === 'running' && <div className="mt-3 flex flex-wrap gap-2">{status?.enabled === false && <Button size="sm" variant="outline" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'schedule' })}>Ativar manutenção</Button>}{phase === 'scheduled' && <Button size="sm" variant="outline" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'abort' })}>Abortar manutenção</Button>}{phase === 'active' && <Button size="sm" variant="destructive" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'deactivate' })}>Desativar manutenção</Button>}</div>}<div className="mt-5"><div className="mb-2 flex items-center gap-2 text-sm font-medium"><Terminal className="h-4 w-4 text-primary" />Console</div>{consoleError[value] ? <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">{consoleError[value]}</p> : <pre className="h-64 overflow-auto rounded-lg bg-black p-3 font-mono text-xs leading-relaxed text-green-300 whitespace-pre-wrap">{consoleOutput[value] || 'Aguardando saída do servidor...'}</pre>}</div></section>;
+      return <section key={value} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"><div className="flex items-start justify-between border-b border-border bg-secondary/30 p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-primary/10 p-2.5 text-primary"><Server className="h-5 w-5" /></div><div><h2 className="text-xl font-semibold">{label}</h2><p className="mt-0.5 text-sm text-muted-foreground">Painel de operação</p></div></div><span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${state === 'running' ? 'bg-green-500/15 text-green-300' : state === 'offline' ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'}`}>{POWER_STATE_LABELS[state] || state}</span></div><div className="space-y-5 p-5"><div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-border bg-background/40 p-3"><div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"><Users className="h-3.5 w-3.5" />Players online</div><p className="mt-1 text-2xl font-bold text-foreground">{playerCount}</p></div><div className="rounded-xl border border-border bg-background/40 p-3"><div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"><Wrench className="h-3.5 w-3.5" />Manutenção</div><p className="mt-1 text-sm font-semibold text-foreground">{maintenanceText}</p></div></div><div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Energia</p><div className="grid grid-cols-3 gap-2"><Button disabled={powerMutation.isPending || state === 'running' || state === 'starting'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'start' })}><Power className="mr-2 h-4 w-4" />Ligar</Button><Button variant="outline" disabled={powerMutation.isPending || state !== 'running'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'restart' })}><RotateCcw className="mr-2 h-4 w-4" />Reiniciar</Button><Button variant="destructive" disabled={powerMutation.isPending || state !== 'running'} onClick={() => setConfirmation({ type: 'power', server: value, signal: 'stop' })}>Desligar</Button></div></div>{state === 'running' && <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4"><p className="mb-3 text-sm font-semibold text-foreground">Manutenção programada</p>{status?.enabled === false && <Button className="w-full" variant="outline" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'schedule' })}>Ativar manutenção em 5 minutos</Button>}{phase === 'scheduled' && <Button className="w-full" variant="outline" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'abort' })}>Abortar manutenção programada</Button>}{phase === 'active' && <Button className="w-full" variant="destructive" disabled={maintenanceMutation.isPending} onClick={() => setConfirmation({ type: 'maintenance', server: value, action: 'deactivate' })}>Desativar manutenção</Button>}</div>}</div></section>;
     })}</div>
     <Dialog open={Boolean(confirmation)} onOpenChange={(open) => !open && setConfirmation(null)}><DialogContent><DialogHeader><DialogTitle>{confirmation?.type === 'power' ? commandLabel(confirmation.signal) : maintenanceLabel(confirmation?.action)} {LABELS[confirmation?.server]}?</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{confirmation?.type === 'power' ? 'O comando será enviado ao Pterodactyl.' : confirmation?.action === 'schedule' ? 'A manutenção será agendada para iniciar em 5 minutos.' : confirmation?.action === 'abort' ? 'A contagem de manutenção será interrompida.' : 'A manutenção será desativada e o servidor será liberado.'}</p><DialogFooter><Button variant="outline" onClick={() => setConfirmation(null)} disabled={powerMutation.isPending || maintenanceMutation.isPending}>Cancelar</Button><Button variant={confirmation?.signal === 'stop' || confirmation?.action === 'deactivate' ? 'destructive' : 'default'} disabled={powerMutation.isPending || maintenanceMutation.isPending} onClick={() => confirmation?.type === 'power' ? powerMutation.mutate(confirmation) : maintenanceMutation.mutate(confirmation?.action === 'abort' ? { action: 'abort', server: confirmation?.server } : { action: 'set', enabled: confirmation?.action === 'schedule', server: confirmation?.server })}>{(powerMutation.isPending || maintenanceMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></DialogFooter></DialogContent></Dialog>
   </div>;
