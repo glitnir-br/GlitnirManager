@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, ShieldBan, X, TrendingDown, Shield, Lock, UserCircle, ExternalLink, Image, FolderCog } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, ShieldBan, X, TrendingDown, Shield, Lock, UserCircle, ExternalLink, Image, FolderCog, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const allNavItems = [
   { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
+  { label: 'Servidores',      path: '/servidores',       icon: Server,          roles: ['adm_principal', 'administrador'] },
   { label: 'Players',         path: '/players',          icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Banidos',         path: '/banidos',          icon: ShieldBan,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Atelier',         path: '/atelier',          icon: Image,           roles: ['adm_principal', 'administrador', 'visitante'] },

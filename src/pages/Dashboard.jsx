@@ -31,22 +31,12 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import StatCard from '@/components/dashboard/StatCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/AuthContext';
 import { SERVERS } from '@/lib/ServerContext';
 
 const SERVER_OPTIONS = [{ value: 'all', label: 'Todos os servidores' }, ...SERVERS];
 const SERVER_LABELS = Object.fromEntries(SERVERS.map((server) => [server.value, server.label]));
 const PIE_COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
-const POWER_STATE_LABELS = { running: 'Ligado', offline: 'Desligado', starting: 'Iniciando', stopping: 'Desligando', unavailable: 'Indisponível' };
-const countdownLabel = (effectiveAt, now) => {
-  const seconds = Math.max(0, Math.ceil((new Date(effectiveAt).getTime() - now) / 1000));
-  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-};
-const maintenancePhase = (status, now) => status?.phase === 'scheduled' && new Date(status.effectiveAt).getTime() > now
-  ? 'scheduled'
-  : status?.enabled ? 'active' : 'normal';
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const recordDate = (record) => new Date(record.data || record.created_date);
@@ -59,21 +49,6 @@ const formatLatestSync = (records) => {
   }, 0);
   return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
 };
-
-async function maintenanceApi(body) {
-  if (!supabase) throw new Error('A manutenção exige conexão com o Supabase.');
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
-  const response = await fetch('/api/server-maintenance', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Falha ao consultar a manutenção.');
-  return result;
-}
 
 const uniquePlayersBySteamId = (records) => {
   const grouped = new Map();
@@ -97,9 +72,6 @@ const uniquePlayersBySteamId = (records) => {
 export default function Dashboard() {
   const [dashboardServer, setDashboardServer] = useState('all');
   const [syncMessage, setSyncMessage] = useState('');
-  const [maintenanceTarget, setMaintenanceTarget] = useState('todos');
-  const [maintenanceConfirmation, setMaintenanceConfirmation] = useState(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -109,23 +81,12 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
-  const maintenanceQuery = useQuery({ queryKey: ['server-maintenance'], queryFn: () => maintenanceApi({ action: 'status' }), ...queryOptions, refetchInterval: 15000, refetchIntervalInBackground: true });
 
   useEffect(() => {
     if (!syncMessage) return undefined;
     const timer = window.setTimeout(() => setSyncMessage(''), 5000);
     return () => window.clearTimeout(timer);
   }, [syncMessage]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const scheduledServers = (maintenanceQuery.data?.servers || []).filter((item) => item.phase === 'scheduled');
-    if (maintenanceTarget === 'todos' && scheduledServers.length === 1) setMaintenanceTarget(scheduledServers[0].server);
-  }, [maintenanceQuery.data, maintenanceTarget]);
 
   const globalSyncMutation = useMutation({
     mutationFn: async () => {
@@ -170,16 +131,6 @@ export default function Dashboard() {
     onError: (error) => setSyncMessage(error.message),
   });
 
-  const maintenanceMutation = useMutation({
-    mutationFn: ({ action, enabled, server }) => maintenanceApi({ action, enabled, server }),
-    onSuccess: (result, variables) => {
-      queryClient.setQueryData(['server-maintenance'], result);
-      setMaintenanceConfirmation(null);
-      setSyncMessage(variables.action === 'abort' ? 'Manutenção abortada antes do prazo.' : variables.enabled ? 'Manutenção agendada para daqui a 5 minutos.' : 'Manutenção desativada.');
-    },
-    onError: (error) => setSyncMessage(error.message),
-  });
-
   const filterServer = (items = []) => dashboardServer === 'all'
     ? items
     : items.filter((item) => item.server === dashboardServer);
@@ -194,15 +145,6 @@ export default function Dashboard() {
     ...banidos.map((banido) => banido.banlist_synced_at),
   ]);
   const isLoading = [playersQuery, financasQuery, comprasQuery, despesasQuery, banidosQuery].some((query) => query.isLoading);
-  const maintenanceStatuses = maintenanceQuery.data?.servers || [];
-  const activeMaintenance = maintenanceStatuses.filter((item) => item.enabled);
-  const targetStatuses = maintenanceTarget === 'todos'
-    ? maintenanceStatuses
-    : maintenanceStatuses.filter((item) => item.server === maintenanceTarget);
-  const targetCanManageMaintenance = targetStatuses.length > 0 && targetStatuses.every((item) => item.powerState === 'running');
-  const targetCanScheduleMaintenance = targetCanManageMaintenance && targetStatuses.every((item) => !item.enabled);
-  const targetCanAbortMaintenance = targetCanManageMaintenance && targetStatuses.length > 0 && targetStatuses.every((item) => maintenancePhase(item, currentTime) === 'scheduled');
-  const targetCanDeactivateMaintenance = targetCanManageMaintenance && targetStatuses.length > 0 && targetStatuses.every((item) => maintenancePhase(item, currentTime) === 'active');
 
   const now = new Date();
   const previousMonth = subMonths(now, 1);
@@ -292,32 +234,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className={`rounded-xl border p-5 ${activeMaintenance.length ? 'border-amber-500/40 bg-amber-500/5' : 'border-border bg-card'}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2"><AlertTriangle className={`h-5 w-5 ${activeMaintenance.length ? 'text-amber-400' : 'text-muted-foreground'}`} /><h2 className="font-semibold text-foreground">Manutenção dos servidores</h2></div>
-            <p className="mt-1 text-sm text-muted-foreground">Controlada pelo arquivo <code className="text-foreground">/BepInEx/config/maintenance</code>. O status é consultado automaticamente a cada 15 segundos.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {maintenanceQuery.isLoading ? <span className="text-xs text-muted-foreground">Verificando status...</span> : SERVERS.map(({ value, label }) => {
-                const status = maintenanceStatuses.find((item) => item.server === value);
-                const enabled = status?.enabled;
-                const powerState = status?.powerState || 'unavailable';
-                const phase = maintenancePhase(status, currentTime);
-                const maintenanceLabel = enabled === null || enabled === undefined ? 'Manutenção desconhecida' : phase === 'scheduled' ? `Agendada · ${countdownLabel(status.effectiveAt, currentTime)}` : enabled ? 'Em manutenção' : 'Sem manutenção';
-                const playerCount = Number.isFinite(status?.onlinePlayers) && Number.isFinite(status?.maxPlayers)
-                  ? `${status.onlinePlayers}/${status.maxPlayers}`
-                  : null;
-                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${powerState === 'running' ? enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{label}: {POWER_STATE_LABELS[powerState] || powerState}{playerCount && ` · ${playerCount}`} · {maintenanceLabel}</span>;
-              })}
-            </div>
-          </div>
-          {['adm_principal', 'administrador'].includes(user?.role) && <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="w-full sm:w-48"><Label className="mb-1.5 block text-xs text-muted-foreground">Aplicar em</Label><Select value={maintenanceTarget} onValueChange={setMaintenanceTarget}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os servidores</SelectItem><SelectItem value="server_1">Server 1</SelectItem><SelectItem value="server_2">Server 2</SelectItem></SelectContent></Select></div>
-            <div className="flex gap-2">{targetCanScheduleMaintenance && <Button variant="outline" disabled={maintenanceMutation.isPending} onClick={() => setMaintenanceConfirmation('schedule')}>Ativar Manutenção</Button>}{targetCanAbortMaintenance && <Button variant="destructive" disabled={maintenanceMutation.isPending} onClick={() => setMaintenanceConfirmation('abort')}>Abortar manutenção</Button>}{targetCanDeactivateMaintenance && <Button variant="destructive" disabled={maintenanceMutation.isPending} onClick={() => setMaintenanceConfirmation('deactivate')}>Desativar Manutenção</Button>}</div>
-          </div>}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
         <StatCard title="Sem personagem" value={playersWithoutCharacter.length} icon={UserRoundX} glowColor="#f59e0b" subtitle="Players que precisam de identificação" />
@@ -374,7 +290,6 @@ export default function Dashboard() {
       </div>
 
       <RecentActivity players={players} financas={financas} banidos={banidos} serverLabels={SERVER_LABELS} showServer={dashboardServer === 'all'} />
-      <Dialog open={maintenanceConfirmation !== null} onOpenChange={(open) => !open && setMaintenanceConfirmation(null)}><DialogContent><DialogHeader><DialogTitle>{maintenanceConfirmation === 'schedule' ? 'Agendar manutenção?' : maintenanceConfirmation === 'abort' ? 'Abortar manutenção?' : 'Desativar manutenção?'}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{maintenanceConfirmation === 'schedule' ? 'Será criado o arquivo maintenance e a contagem de 5 minutos será iniciada.' : maintenanceConfirmation === 'abort' ? 'O arquivo maintenance será removido e a contagem será interrompida.' : 'O arquivo maintenance será removido para liberar o servidor.'} Destino: <strong className="text-foreground">{maintenanceTarget === 'todos' ? 'Todos os servidores' : SERVER_LABELS[maintenanceTarget]}</strong>.</p><DialogFooter><Button variant="outline" onClick={() => setMaintenanceConfirmation(null)} disabled={maintenanceMutation.isPending}>Cancelar</Button><Button variant={maintenanceConfirmation === 'deactivate' ? 'destructive' : 'default'} onClick={() => maintenanceMutation.mutate(maintenanceConfirmation === 'abort' ? { action: 'abort', server: maintenanceTarget } : { action: 'set', enabled: maintenanceConfirmation === 'schedule', server: maintenanceTarget })} disabled={maintenanceMutation.isPending}>{maintenanceMutation.isPending ? 'Aplicando...' : 'Confirmar'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }

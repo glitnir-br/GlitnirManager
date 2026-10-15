@@ -17,6 +17,7 @@ import UnauthorizedAccessScreen from '@/components/UnauthorizedAccessScreen';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
+import Servidores from '@/pages/Servidores';
 import Players from '@/pages/Players';
 import Financas from '@/pages/Financas';
 import Banidos from '@/pages/Banidos';
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/servidores" element={<Servidores />} />
         <Route path="/players" element={<Players />} />
         <Route path="/financas" element={<Financas />} />
         <Route path="/banidos" element={<Banidos />} />
