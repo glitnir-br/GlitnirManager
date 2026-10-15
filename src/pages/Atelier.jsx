@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Grid2X2, Image, ImageOff, List, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,7 @@ export default function Atelier() {
     onError: (mutationError) => setMessage(mutationError.message),
   });
   const files = data?.files || [];
+  useEffect(() => { if (!message) return undefined; const timer = window.setTimeout(() => setMessage(''), 5000); return () => window.clearTimeout(timer); }, [message]);
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
