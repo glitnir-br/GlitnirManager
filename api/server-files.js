@@ -23,6 +23,7 @@ async function syncMods(admin) {
   if (error) throw error;
   const manifests = new Map();
   const manifestRecords = [];
+  const manifestsByName = new Map();
   const keyFor = (server, category, directory) => `${server}:${category}:${directory}`;
   const baseName = (path) => path.split('/').pop().replace(/\.dll$/i, '').toLowerCase();
   for (const file of files || []) if (/^manifest(?:\.json)?$/i.test(file.path.split('/').pop() || '')) for (const server of file.servers || []) {
@@ -34,6 +35,7 @@ async function syncMods(admin) {
         const creator = folder.includes('-') ? folder.split('-')[0].trim() || 'Não informado' : 'Não informado';
         const manifest = { name: json.name, version: json.version_number };
         manifests.set(keyFor(server, file.category, file.path.split('/').slice(0, -1).join('/')), manifest);
+        manifestsByName.set(`${server}:${json.name.toLowerCase()}`, manifest);
         manifestRecords.push({ ...manifest, creator, category: file.category, server, manifest_path: file.path });
       }
     } catch (readError) { console.warn(`Manifest inválido: ${file.path}`, readError.message); }
@@ -53,7 +55,7 @@ async function syncMods(admin) {
   }
   const records = [...manifestRecords];
   for (const file of files || []) if (/\.dll$/i.test(file.path)) for (const server of file.servers || []) {
-    const manifest = manifestFor(server, file.category, file.path) || pluginDlls.get(`${server}:${baseName(file.path)}`);
+    const manifest = manifestFor(server, file.category, file.path) || pluginDlls.get(`${server}:${baseName(file.path)}`) || manifestsByName.get(`${server}:${baseName(file.path)}`);
     const folder = file.path.split('/').slice(0, -1).pop() || '';
     const creator = folder.includes('-') ? folder.split('-')[0].trim() || 'Não informado' : 'Não informado';
     records.push({ name: manifest?.name || file.path.split('/').pop().replace(/\.dll$/i, ''), version: manifest?.version || 'Versão indisponível', creator, category: file.category, server, manifest_path: file.path });
