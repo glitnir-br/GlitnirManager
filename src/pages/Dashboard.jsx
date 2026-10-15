@@ -31,6 +31,8 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import StatCard from '@/components/dashboard/StatCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/AuthContext';
 import { SERVERS } from '@/lib/ServerContext';
 
@@ -49,6 +51,21 @@ const formatLatestSync = (records) => {
   }, 0);
   return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
 };
+
+async function maintenanceApi(body) {
+  if (!supabase) throw new Error('A manutenção exige conexão com o Supabase.');
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+  const response = await fetch('/api/server-maintenance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Falha ao consultar a manutenção.');
+  return result;
+}
 
 const uniquePlayersBySteamId = (records) => {
   const grouped = new Map();
@@ -72,6 +89,8 @@ const uniquePlayersBySteamId = (records) => {
 export default function Dashboard() {
   const [dashboardServer, setDashboardServer] = useState('all');
   const [syncMessage, setSyncMessage] = useState('');
+  const [maintenanceTarget, setMaintenanceTarget] = useState('todos');
+  const [maintenanceConfirmation, setMaintenanceConfirmation] = useState(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -81,6 +100,7 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
+  const maintenanceQuery = useQuery({ queryKey: ['server-maintenance'], queryFn: () => maintenanceApi({ action: 'status' }), ...queryOptions });
 
   useEffect(() => {
     if (!syncMessage) return undefined;
@@ -121,11 +141,22 @@ export default function Dashboard() {
     },
     onSuccess: (results) => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['server-maintenance'] });
       const successful = results.filter((item) => item.success).length;
       const failed = results.filter((item) => !item.success);
       setSyncMessage(failed.length
         ? `${successful}/4 sincronizações concluídas. ${failed.map((item) => `${SERVER_LABELS[item.server]} (${item.type}): ${item.error}`).join(' · ')}`
         : 'Whitelist e banidos sincronizados com sucesso nos dois servidores.');
+    },
+    onError: (error) => setSyncMessage(error.message),
+  });
+
+  const maintenanceMutation = useMutation({
+    mutationFn: ({ enabled, server }) => maintenanceApi({ action: 'set', enabled, server }),
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(['server-maintenance'], result);
+      setMaintenanceConfirmation(null);
+      setSyncMessage(variables.enabled ? 'Manutenção ativada.' : 'Manutenção desativada.');
     },
     onError: (error) => setSyncMessage(error.message),
   });
@@ -144,6 +175,12 @@ export default function Dashboard() {
     ...banidos.map((banido) => banido.banlist_synced_at),
   ]);
   const isLoading = [playersQuery, financasQuery, comprasQuery, despesasQuery, banidosQuery].some((query) => query.isLoading);
+  const maintenanceStatuses = maintenanceQuery.data?.servers || [];
+  const activeMaintenance = maintenanceStatuses.filter((item) => item.enabled);
+  const targetStatuses = maintenanceTarget === 'todos'
+    ? maintenanceStatuses
+    : maintenanceStatuses.filter((item) => item.server === maintenanceTarget);
+  const targetHasMaintenance = targetStatuses.some((item) => item.enabled);
 
   const now = new Date();
   const previousMonth = subMonths(now, 1);
@@ -233,6 +270,25 @@ export default function Dashboard() {
         </div>
       )}
 
+      <div className={`rounded-xl border p-5 ${activeMaintenance.length ? 'border-amber-500/40 bg-amber-500/5' : 'border-border bg-card'}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2"><AlertTriangle className={`h-5 w-5 ${activeMaintenance.length ? 'text-amber-400' : 'text-muted-foreground'}`} /><h2 className="font-semibold text-foreground">Manutenção dos servidores</h2></div>
+            <p className="mt-1 text-sm text-muted-foreground">Controlada pelo arquivo <code className="text-foreground">/BepInEx/config/maintenance</code>.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {maintenanceQuery.isLoading ? <span className="text-xs text-muted-foreground">Verificando status...</span> : SERVERS.map(({ value, label }) => {
+                const enabled = maintenanceStatuses.find((item) => item.server === value)?.enabled;
+                return <span key={value} className={`rounded-full px-2.5 py-1 text-xs font-medium ${enabled ? 'bg-amber-500/15 text-amber-300' : 'bg-green-500/15 text-green-300'}`}>{label}: {enabled ? 'Em manutenção' : 'Online'}</span>;
+              })}
+            </div>
+          </div>
+          {['adm_principal', 'administrador'].includes(user?.role) && <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="w-full sm:w-48"><Label className="mb-1.5 block text-xs text-muted-foreground">Aplicar em</Label><Select value={maintenanceTarget} onValueChange={setMaintenanceTarget}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os servidores</SelectItem><SelectItem value="server_1">Server 1</SelectItem><SelectItem value="server_2">Server 2</SelectItem></SelectContent></Select></div>
+            <div className="flex gap-2"><Button variant="outline" disabled={maintenanceMutation.isPending || targetStatuses.length === 0 || targetStatuses.every((item) => item.enabled)} onClick={() => setMaintenanceConfirmation(true)}>Ativar</Button><Button variant="destructive" disabled={maintenanceMutation.isPending || !targetHasMaintenance} onClick={() => setMaintenanceConfirmation(false)}>Desativar</Button></div>
+          </div>}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
         <StatCard title="Sem personagem" value={playersWithoutCharacter.length} icon={UserRoundX} glowColor="#f59e0b" subtitle="Players que precisam de identificação" />
@@ -289,6 +345,7 @@ export default function Dashboard() {
       </div>
 
       <RecentActivity players={players} financas={financas} banidos={banidos} serverLabels={SERVER_LABELS} showServer={dashboardServer === 'all'} />
+      <Dialog open={maintenanceConfirmation !== null} onOpenChange={(open) => !open && setMaintenanceConfirmation(null)}><DialogContent><DialogHeader><DialogTitle>{maintenanceConfirmation ? 'Ativar manutenção?' : 'Desativar manutenção?'}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{maintenanceConfirmation ? 'Será criado o arquivo maintenance.' : 'O arquivo maintenance será removido.'} Destino: <strong className="text-foreground">{maintenanceTarget === 'todos' ? 'Todos os servidores' : SERVER_LABELS[maintenanceTarget]}</strong>.</p><DialogFooter><Button variant="outline" onClick={() => setMaintenanceConfirmation(null)} disabled={maintenanceMutation.isPending}>Cancelar</Button><Button variant={maintenanceConfirmation ? 'default' : 'destructive'} onClick={() => maintenanceMutation.mutate({ enabled: maintenanceConfirmation, server: maintenanceTarget })} disabled={maintenanceMutation.isPending}>{maintenanceMutation.isPending ? 'Aplicando...' : 'Confirmar'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
