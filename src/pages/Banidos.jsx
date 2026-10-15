@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44, supabase } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,13 @@ const motivoStyles = {
 const initialForm = { steamid: '', observacao: '' };
 const normalizeSteamId = (value) => value.trim().replace(/^Steam_/i, '');
 const isValidSteamId = (value) => /^\d{17}$/.test(normalizeSteamId(value));
+const formatLatestSync = (records, field) => {
+  const latest = records.reduce((current, record) => {
+    const timestamp = new Date(record[field] || 0).getTime();
+    return Number.isFinite(timestamp) && timestamp > current ? timestamp : current;
+  }, 0);
+  return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
+};
 
 export default function Banidos() {
   const { server, serverLabel } = useServer();
@@ -42,6 +49,12 @@ export default function Banidos() {
     queryKey: ['banidos', server],
     queryFn: () => base44.entities.Banido.filter({ server }, '-created_date'),
   });
+
+  useEffect(() => {
+    if (!syncMessage) return undefined;
+    const timer = window.setTimeout(() => setSyncMessage(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [syncMessage]);
 
   const markPlayerAsBanned = async (steamidToBan) => {
     const players = await base44.entities.Player.filter({ server });
@@ -161,13 +174,16 @@ export default function Banidos() {
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {['adm_principal', 'administrador'].includes(user?.role) && (
-            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar banidos'}
-            </Button>
-          )}
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-col gap-1 sm:items-end">
+            {['adm_principal', 'administrador'].includes(user?.role) && (
+              <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar banidos'}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">Última atualização: {formatLatestSync(banidos, 'banlist_synced_at')}</span>
+          </div>
           <Button onClick={() => setDialogOpen(true)} className="bg-destructive hover:bg-destructive/90">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Banido

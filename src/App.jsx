@@ -9,6 +9,7 @@ import { FinancialPasswordProvider } from '@/lib/FinancialPasswordContext';
 import { ServerProvider } from '@/lib/ServerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginScreen from '@/components/LoginScreen';
+import ForcedPasswordChange from '@/components/ForcedPasswordChange';
 
 import BlockedAccessScreen from '@/components/BlockedAccessScreen';
 import PendingApprovalScreen from '@/components/PendingApprovalScreen';
@@ -65,7 +66,7 @@ const AuthenticatedApp = () => {
   }
 
   if (user.must_change_password) {
-    return <UserProfile />;
+    return <ForcedPasswordChange />;
   }
 
   // Render the main app

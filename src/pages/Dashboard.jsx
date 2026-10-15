@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isSameMonth, subMonths } from 'date-fns';
 import {
@@ -42,6 +42,13 @@ const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { mini
 const recordDate = (record) => new Date(record.data || record.created_date);
 const hasCharacter = (player) => Array.isArray(player.personagens) && player.personagens.some(Boolean);
 const steamKey = (record) => String(record.steamid || '').replace(/^Steam_/i, '').trim().toLowerCase() || `registro:${record.id}`;
+const formatLatestSync = (records) => {
+  const latest = records.reduce((current, value) => {
+    const timestamp = new Date(value || 0).getTime();
+    return Number.isFinite(timestamp) && timestamp > current ? timestamp : current;
+  }, 0);
+  return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
+};
 
 const uniquePlayersBySteamId = (records) => {
   const grouped = new Map();
@@ -74,6 +81,12 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
+
+  useEffect(() => {
+    if (!syncMessage) return undefined;
+    const timer = window.setTimeout(() => setSyncMessage(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [syncMessage]);
 
   const globalSyncMutation = useMutation({
     mutationFn: async () => {
@@ -126,6 +139,10 @@ export default function Dashboard() {
   const compras = filterServer(comprasQuery.data);
   const despesas = filterServer(despesasQuery.data);
   const banidos = filterServer(banidosQuery.data);
+  const lastUpdated = formatLatestSync([
+    ...players.map((player) => player.whitelist_synced_at),
+    ...banidos.map((banido) => banido.banlist_synced_at),
+  ]);
   const isLoading = [playersQuery, financasQuery, comprasQuery, despesasQuery, banidosQuery].some((query) => query.isLoading);
 
   const now = new Date();
@@ -193,17 +210,20 @@ export default function Dashboard() {
               <SelectContent>{SERVER_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {['adm_principal', 'administrador'].includes(user?.role) && (
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={globalSyncMutation.isPending}
-              onClick={() => { setSyncMessage(''); globalSyncMutation.mutate(); }}
-            >
-              <RefreshCw className={`h-4 w-4 ${globalSyncMutation.isPending ? 'animate-spin' : ''}`} />
-              {globalSyncMutation.isPending ? 'Sincronizando...' : 'Sincronizar servidores'}
-            </Button>
-          )}
+          <div className="flex flex-col gap-1 sm:items-end">
+            {['adm_principal', 'administrador'].includes(user?.role) && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={globalSyncMutation.isPending}
+                onClick={() => { setSyncMessage(''); globalSyncMutation.mutate(); }}
+              >
+                <RefreshCw className={`h-4 w-4 ${globalSyncMutation.isPending ? 'animate-spin' : ''}`} />
+                {globalSyncMutation.isPending ? 'Sincronizando...' : 'Sincronizar servidores'}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">Última atualização: {lastUpdated}</span>
+          </div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/dbClient';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,14 @@ async function checkDuplicates(players, current) {
   );
   return isDuplicate;
 }
+
+const formatLatestSync = (records, field) => {
+  const latest = records.reduce((current, record) => {
+    const timestamp = new Date(record[field] || 0).getTime();
+    return Number.isFinite(timestamp) && timestamp > current ? timestamp : current;
+  }, 0);
+  return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
+};
 
 export default function Players() {
   const { server, serverLabel } = useServer();
@@ -72,6 +80,12 @@ export default function Players() {
     mutationFn: (updates) => base44.entities.Player.bulkUpdate(updates),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['players', server] }),
   });
+
+  useEffect(() => {
+    if (!syncMessage) return undefined;
+    const timer = window.setTimeout(() => setSyncMessage(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [syncMessage]);
 
   const syncMutation = useMutation({
     mutationFn: async () => {
@@ -163,13 +177,16 @@ export default function Players() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Players</h1>
           <p className="text-muted-foreground text-sm mt-1">{players.length} jogadores cadastrados no {serverLabel}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {['adm_principal', 'administrador'].includes(user?.role) && (
-            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar whitelist'}
-            </Button>
-          )}
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-col gap-1 sm:items-end">
+            {['adm_principal', 'administrador'].includes(user?.role) && (
+              <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar whitelist'}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">Última atualização: {formatLatestSync(players, 'whitelist_synced_at')}</span>
+          </div>
           <Button onClick={() => setDialogOpen(true)} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Player

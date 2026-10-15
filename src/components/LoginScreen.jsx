@@ -5,9 +5,11 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/dbClient';
 import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginScreen() {
   const { loginWithPassword, navigateToLogin, isLoadingAuth } = useAuth();
+  const navigate = useNavigate();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +25,7 @@ export default function LoginScreen() {
 
     try {
       const res = await loginWithPassword(username, password);
+      if (res.success) navigate('/', { replace: true });
       if (!res.success) {
         setError(res.message || 'Credenciais inválidas.');
       }
