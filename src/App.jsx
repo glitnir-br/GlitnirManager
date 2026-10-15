@@ -24,6 +24,8 @@ import Mods from '@/pages/Mods';
 import Administracao from '@/pages/Administracao';
 import UserProfile from '@/pages/UserProfile';
 import DeleteConfirmationProvider from '@/components/DeleteConfirmationProvider';
+import PagePermissionGuard from '@/components/PagePermissionGuard';
+import { PermissionsProvider } from '@/lib/PermissionsContext';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -69,17 +71,17 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/servidores" element={<Servidores />} />
-        <Route path="/jogadores" element={<Jogadores />} />
+        <Route path="/" element={<PagePermissionGuard page="dashboard"><Dashboard /></PagePermissionGuard>} />
+        <Route path="/servidores" element={<PagePermissionGuard page="servidores"><Servidores /></PagePermissionGuard>} />
+        <Route path="/jogadores" element={<PagePermissionGuard page="jogadores"><Jogadores /></PagePermissionGuard>} />
         <Route path="/players" element={<Navigate to="/jogadores" replace />} />
-        <Route path="/financeiro" element={<Financeiro />} />
+        <Route path="/financeiro" element={<PagePermissionGuard page="financeiro"><Financeiro /></PagePermissionGuard>} />
         <Route path="/financas" element={<Navigate to="/financeiro" replace />} />
         <Route path="/banidos" element={<Navigate to="/jogadores?tab=banidos" replace />} />
         <Route path="/atelier" element={<Navigate to="/mods?tab=atelier" replace />} />
-        <Route path="/mods" element={<Mods />} />
+        <Route path="/mods" element={<PagePermissionGuard page="mods"><Mods /></PagePermissionGuard>} />
         <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
-        <Route path="/administracao" element={<Administracao />} />
+        <Route path="/administracao" element={<PagePermissionGuard page="administracao"><Administracao /></PagePermissionGuard>} />
         <Route path="/admin-access" element={<Navigate to="/administracao" replace />} />
         <Route path="/admin-settings" element={<Navigate to="/administracao?tab=configuracoes" replace />} />
         <Route path="/security-settings" element={<Navigate to="/administracao?tab=seguranca" replace />} />
@@ -101,9 +103,9 @@ function App() {
         <AdminAuthProvider>
           <FinancialPasswordProvider>
             <QueryClientProvider client={queryClientInstance}>
-              <Router>
+              <PermissionsProvider><Router>
                 <AuthenticatedApp />
-              </Router>
+              </Router></PermissionsProvider>
               <Toaster />
             </QueryClientProvider>
           </FinancialPasswordProvider>

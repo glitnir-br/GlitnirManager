@@ -1,0 +1,41 @@
+import React, { createContext, useContext, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44, isSupabaseConfigured } from '@/api/dbClient';
+import { useAuth } from '@/lib/AuthContext';
+
+const PermissionsContext = createContext();
+
+export const PAGE_PERMISSIONS = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'servidores', label: 'Servidores' },
+  { key: 'jogadores', label: 'Jogadores' },
+  { key: 'mods', label: 'Mods' },
+  { key: 'financeiro', label: 'Financeiro' },
+  { key: 'administracao', label: 'Administração' },
+];
+
+const LEGACY_PERMISSIONS = {
+  adm_principal: PAGE_PERMISSIONS.map(({ key }) => key),
+  administrador: ['dashboard', 'servidores', 'jogadores', 'mods', 'financeiro', 'administracao'],
+  financeiro: ['dashboard', 'jogadores', 'financeiro'],
+  visitante: ['dashboard', 'jogadores', 'mods'],
+};
+
+export function PermissionsProvider({ children }) {
+  const { user } = useAuth();
+  const { data: permissions = [], isLoading } = useQuery({
+    queryKey: ['role-permissions'],
+    queryFn: () => base44.entities.RolePermission.list(),
+    enabled: Boolean(user && isSupabaseConfigured()),
+    staleTime: 30_000,
+  });
+  const allowedPages = useMemo(() => {
+    if (user?.role === 'adm_principal') return LEGACY_PERMISSIONS.adm_principal;
+    const saved = permissions.filter((item) => item.role_key === user?.role && item.allowed).map((item) => item.page_key);
+    return saved.length ? saved : (LEGACY_PERMISSIONS[user?.role] || []);
+  }, [permissions, user?.role]);
+  const hasPage = (page) => allowedPages.includes(page);
+  return <PermissionsContext.Provider value={{ hasPage, allowedPages, isLoadingPermissions: isLoading }}>{children}</PermissionsContext.Provider>;
+}
+
+export const usePermissions = () => useContext(PermissionsContext) || { hasPage: () => false, allowedPages: [] };

@@ -31,7 +31,9 @@ const TABLE_MAP = {
   UserProfile: 'user_profiles',
   AccessRequest: 'access_requests',
   AdminSettings: 'admin_settings',
-  SecurityLog: 'security_logs'
+  SecurityLog: 'security_logs',
+  Role: 'roles',
+  RolePermission: 'role_permissions'
 };
 
 // Fallback local se o Supabase não tiver chaves preenchidas no ambiente atual
@@ -49,7 +51,9 @@ const INITIAL_DATA = {
   UserProfile: [],
   AccessRequest: [],
   AdminSettings: [],
-  SecurityLog: []
+  SecurityLog: [],
+  Role: [],
+  RolePermission: []
 };
 
 const getLocalStorage = (entityName) => {

@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
+import { usePermissions } from '@/lib/PermissionsContext';
 
 const allNavItems = [
   { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
@@ -17,7 +18,9 @@ const allNavItems = [
 export default function Sidebar({ open, setOpen }) {
   const location = useLocation();
   const { user } = useAuth();
-  const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
+  const { hasPage } = usePermissions();
+  const systemRole = ['adm_principal', 'administrador', 'financeiro', 'visitante'].includes(user?.role);
+  const navItems = allNavItems.filter((item) => (!systemRole || item.roles.includes(user?.role)) && hasPage(item.path === '/' ? 'dashboard' : item.path.slice(1)));
 
   return (
     <>

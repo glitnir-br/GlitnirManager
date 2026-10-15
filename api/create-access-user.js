@@ -18,7 +18,13 @@ export default async function handler(req, res) {
     if (!email || !profile || !['adm_principal', 'administrador'].includes(profile.role) || !['ativo', 'aprovado'].includes(profile.status)) return send(res, 403, { error: 'Sem permissão para criar acessos.' });
     const newEmail = String(req.body?.email || '').trim().toLowerCase();
     const role = String(req.body?.role || 'visitante');
-    if (!/^\S+@\S+\.\S+$/.test(newEmail) || !ROLES.has(role)) return send(res, 400, { error: 'E-mail ou cargo inválido.' });
+    let isValidRole = ROLES.has(role);
+    if (!isValidRole) {
+      const { data: customRole, error: roleError } = await admin.from('roles').select('key').eq('key', role).maybeSingle();
+      if (roleError) throw roleError;
+      isValidRole = Boolean(customRole);
+    }
+    if (!/^\S+@\S+\.\S+$/.test(newEmail) || !isValidRole) return send(res, 400, { error: 'E-mail ou cargo inválido.' });
     const { data: existing } = await admin.from('user_profiles').select('id').eq('email', newEmail).maybeSingle();
     if (existing) return send(res, 409, { error: 'Este e-mail já possui acesso.' });
     const temporaryPassword = randomPassword();
