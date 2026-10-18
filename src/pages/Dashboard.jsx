@@ -272,14 +272,17 @@ export default function Dashboard() {
             return <div key={server.value} className="overflow-hidden rounded-xl border border-border bg-background/30">
               <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-4 py-3">
                 <h3 className="flex items-center gap-2 font-semibold"><Server className="h-4 w-4 text-primary" />{server.label}</h3>
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{onlinePlayersQuery.isLoading ? '—' : online.length} online</span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${result?.error ? 'bg-red-500/15 text-red-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+                  {!onlinePlayersQuery.isLoading && !result?.error && <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />}
+                  {onlinePlayersQuery.isLoading ? 'Consultando...' : result?.error ? 'Indisponível' : `${online.length} online`}
+                </span>
               </div>
               <div className="space-y-2 p-3">
                 {onlinePlayersQuery.isLoading && <div className="flex items-center justify-center py-8"><RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
                 {!onlinePlayersQuery.isLoading && result?.error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{result.error}</p>}
                 {!onlinePlayersQuery.isLoading && !result?.error && !online.length && <p className="py-8 text-center text-sm text-muted-foreground">Nenhum jogador online.</p>}
-                {online.map((player) => <div key={player.steamid} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
-                  <div className="min-w-0"><p className="truncate text-sm font-medium">{player.name || 'Sem nome'}</p><p className="text-xs text-muted-foreground">Steam ID {player.steamid}</p></div>
+                {online.map((player) => <div key={player.steamid} className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-3"><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_9px_rgba(52,211,153,0.75)]" /><div className="min-w-0"><p className="truncate text-sm font-medium">{player.name || 'Sem nome'}</p><p className="text-xs text-muted-foreground">Steam ID {player.steamid}</p></div></div>
                   {player.platform && <span className="max-w-40 truncate text-xs text-muted-foreground" title={player.platform}>{player.platform}</span>}
                 </div>)}
               </div>
