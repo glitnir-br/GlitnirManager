@@ -22,6 +22,7 @@ import Jogadores from '@/pages/Jogadores';
 import Financeiro from '@/pages/Financeiro';
 import Mods from '@/pages/Mods';
 import Administracao from '@/pages/Administracao';
+import Personagem from '@/pages/Personagem';
 import UserProfile from '@/pages/UserProfile';
 import DeleteConfirmationProvider from '@/components/DeleteConfirmationProvider';
 import PagePermissionGuard from '@/components/PagePermissionGuard';
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
         <Route path="/mods" element={<PagePermissionGuard page="mods"><Mods /></PagePermissionGuard>} />
         <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
         <Route path="/administracao" element={<PagePermissionGuard page="administracao"><Administracao /></PagePermissionGuard>} />
+        <Route path="/personagem" element={<Personagem />} />
         <Route path="/admin-access" element={<Navigate to="/administracao" replace />} />
         <Route path="/admin-settings" element={<Navigate to="/administracao?tab=configuracoes" replace />} />
         <Route path="/security-settings" element={<Navigate to="/administracao?tab=seguranca" replace />} />
