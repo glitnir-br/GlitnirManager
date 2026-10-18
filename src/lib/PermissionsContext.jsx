@@ -14,6 +14,10 @@ export const PAGE_PERMISSIONS = [
   { key: 'mods', label: 'Mods' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'administracao', label: 'Administração' },
+  { key: 'vip_manage_packages', label: 'VIP · Gerenciar pacotes' },
+  { key: 'vip_deliveries', label: 'VIP · Criar e executar entregas' },
+  { key: 'vip_history', label: 'VIP · Consultar histórico' },
+  { key: 'vip_finance', label: 'VIP · Visualizar dados financeiros' },
 ];
 
 const LEGACY_PERMISSIONS = {

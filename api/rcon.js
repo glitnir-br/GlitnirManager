@@ -41,7 +41,7 @@ async function authenticate(req) {
   if (!allowed) throw Object.assign(new Error('Seu cargo não possui permissão para usar Rcon.'), { status: 403 });
   return { email: data.user.email };
 }
-function executeRcon(server, command) {
+export function executeRcon(server, command) {
   const config = configFor(server);
   if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || !config.password) throw Object.assign(new Error(`RCON do ${server === 'server_1' ? 'Server 1' : 'Server 2'} não está configurado.`), { status: 503 });
   return new Promise((resolve, reject) => {
