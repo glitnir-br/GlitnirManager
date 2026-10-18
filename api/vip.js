@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import vanillaCatalog from '../src/data/valheim-item-catalog.json' with { type: 'json' };
 import modpackCatalog from '../src/data/glitnir-prefab-catalog.json' with { type: 'json' };
 import { executeRcon } from './rcon.js';
+import { itemDisplayName } from '../src/lib/itemNames.js';
 
 const DEFAULT_ROLES = new Set(['adm_principal', 'administrador']);
 const catalog = new Map([...Object.values(vanillaCatalog), ...Object.values(modpackCatalog)].filter((item) => item?.prefab).map((item) => [item.prefab, item]));
@@ -30,7 +31,7 @@ function validatedItems(items) {
     if (!known) throw Object.assign(new Error(`Prefab inválido: ${item.prefab || '-'}.`), { status: 400 });
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000 || !Number.isInteger(quality) || quality < 1 || (known.maxQuality && quality > known.maxQuality)) throw Object.assign(new Error(`Quantidade ou qualidade inválida para ${item.prefab}.`), { status: 400 });
     if (seen.has(key)) throw Object.assign(new Error(`Item duplicado: ${item.prefab} qualidade ${quality}.`), { status: 400 }); seen.add(key);
-    return { friendly_name: known.english || known.token || known.prefab, prefab: known.prefab, quantity, quality, sort_order: index };
+    return { friendly_name: itemDisplayName(known), prefab: known.prefab, quantity, quality, sort_order: index };
   });
 }
 function playerIsOnline(output, steamid) { const value = String(output || '').toLowerCase(); return value.includes(steamid.toLowerCase()) && !/(not found|no player|offline|não encontrado)/i.test(value); }

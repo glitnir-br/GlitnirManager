@@ -1,5 +1,6 @@
 import itemCatalog from '@/data/valheim-item-catalog.json';
 import modpackCatalog from '@/data/glitnir-prefab-catalog.json';
+import { itemDisplayName } from '@/lib/itemNames';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const DIFFICULTIES = ['Geral', 'Qualquer', 'Martelo', 'Casual', 'Muito fácil', 'Fácil', 'Normal', 'Difícil', 'Muito difícil', 'Extremo'];
@@ -18,6 +19,12 @@ function stableHash(value) {
 
 const catalogByHash = new Map(Object.values(itemCatalog).map((item) => [stableHash(item.prefab), item]));
 for (const [hash, item] of Object.entries(modpackCatalog)) catalogByHash.set(Number(hash), item);
+const catalogByPrefab = new Map([...Object.values(itemCatalog), ...Object.values(modpackCatalog)].map((item) => [item.prefab, item]));
+
+export function resolveItemName(prefab) {
+  const item = catalogByPrefab.get(String(prefab || ''));
+  return item ? itemDisplayName(item) : itemDisplayName({ prefab });
+}
 
 class Reader {
   constructor(buffer, start = 0, end = buffer.byteLength) { this.view = new DataView(buffer, start, end - start); this.bytes = new Uint8Array(buffer, start, end - start); this.p = 0; }
@@ -51,7 +58,7 @@ function readItem(reader) {
   if (flags & 128) for (let i = 0, count = reader.itemCount(); i < count; i += 1) customData[reader.string()] = reader.string();
   const cheated = reader.bool();
   const catalog = catalogByHash.get(prefabHash);
-  return { prefabHash, prefab: catalog?.prefab || '', name: catalog?.english || catalog?.token || catalog?.prefab || `Item desconhecido (${prefabHash})`, stack, durability, quality, variant, position, worldLevel, equipped: Boolean(flags & 2), crafterId, crafterName, cheated, customData, weight: catalog?.weight, maxStack: catalog?.maxStackSize };
+  return { prefabHash, prefab: catalog?.prefab || '', name: catalog ? itemDisplayName(catalog) : `Item desconhecido (${prefabHash})`, stack, durability, quality, variant, position, worldLevel, equipped: Boolean(flags & 2), crafterId, crafterName, cheated, customData, weight: catalog?.weight, maxStack: catalog?.maxStackSize };
 }
 
 export function parseFch(arrayBuffer) {

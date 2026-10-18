@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock3, Crown, PackagePlus, Search, Send, Settings2, Trash2, UserMinus, X } from 'lucide-react';
 import { base44, supabase } from '@/api/dbClient';
 import { usePermissions } from '@/lib/PermissionsContext';
+import { itemDisplayName, shouldShowPrefab } from '@/lib/itemNames';
 import vanillaCatalog from '@/data/valheim-item-catalog.json';
 import modpackCatalog from '@/data/glitnir-prefab-catalog.json';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +15,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const CATALOG = [...new Map([...Object.values(vanillaCatalog), ...Object.values(modpackCatalog)].filter((item) => item?.prefab).map((item) => [item.prefab, item])).values()].sort((a, b) => (a.english || a.prefab).localeCompare(b.english || b.prefab, 'pt-BR'));
+const CATALOG = [...new Map([...Object.values(vanillaCatalog), ...Object.values(modpackCatalog)].filter((item) => item?.prefab).map((item) => [item.prefab, item])).values()].sort((a, b) => itemDisplayName(a).localeCompare(itemDisplayName(b), 'pt-BR'));
 const STATUS = { pendente: 'Pendente', aguardando_online: 'Aguardando online', em_processamento: 'Em processamento', entregue: 'Entregue', concluida: 'Concluída', parcial: 'Parcial', falhou: 'Falhou', resultado_incerto: 'Resultado incerto', cancelada: 'Cancelada' };
 const SERVER_LABEL = { server_1: 'Server 1', server_2: 'Server 2' };
 const money = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const namesFor = (player) => player?.personagens?.filter(Boolean)?.length ? player.personagens.filter(Boolean) : player?.nick ? [player.nick] : [];
+const normalizeSearch = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+const namesFor = (player) => [...new Set([
+  ...(Array.isArray(player?.personagens) ? player.personagens : []),
+  player?.personagem,
+  player?.nick,
+  player?.name,
+].filter((name) => typeof name === 'string' && name.trim() && name.trim() !== String(player?.steamid || '').trim()).map((name) => name.trim()))];
 const emptyPackage = () => ({ name: '', description: '', price: '', active: true, items: [] });
 const emptyDelivery = () => ({ playerKey: '', playerId: '', steamid: '', characterName: '', server: '', packageId: '', adminNote: '', items: [], operationKey: '' });
 
@@ -32,15 +39,15 @@ async function vipApi(body) {
 
 function ItemEditor({ items, setItems }) {
   const [query, setQuery] = useState('');
-  const matches = query.length > 1 ? CATALOG.filter((item) => `${item.english || ''} ${item.token || ''} ${item.prefab}`.toLowerCase().includes(query.toLowerCase())).slice(0, 20) : [];
+  const matches = query.length > 1 ? CATALOG.filter((item) => `${itemDisplayName(item)} ${item.english || ''} ${item.token || ''} ${item.prefab}`.toLowerCase().includes(query.toLowerCase())).slice(0, 20) : [];
   const add = (item) => {
     const existing = items.findIndex((row) => row.prefab === item.prefab && Number(row.quality) === 1);
     if (existing >= 0) setItems(items.map((row, index) => index === existing ? { ...row, quantity: Number(row.quantity) + 1 } : row));
-    else setItems([...items, { friendly_name: item.english || item.token || item.prefab, prefab: item.prefab, quantity: 1, quality: 1, maxQuality: item.maxQuality || null }]);
+    else setItems([...items, { friendly_name: itemDisplayName(item), prefab: item.prefab, quantity: 1, quality: 1, maxQuality: item.maxQuality || null }]);
     setQuery('');
   };
   return <div className="space-y-3">
-    <div><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar item por nome ou prefab..." />{matches.length > 0 && <div className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl">{matches.map((item) => <button type="button" key={item.prefab} onClick={() => add(item)} className="block w-full rounded p-2 text-left text-sm hover:bg-secondary"><span className="font-medium">{item.english || item.token || item.prefab}</span><span className="ml-2 text-xs text-muted-foreground">{item.prefab}</span></button>)}</div>}</div>
+    <div><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar item por nome ou prefab..." />{matches.length > 0 && <div className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl">{matches.map((item) => { const name = itemDisplayName(item); return <button type="button" key={item.prefab} onClick={() => add(item)} className="block w-full rounded p-2 text-left text-sm hover:bg-secondary"><span className="font-medium">{name}</span>{shouldShowPrefab(name, item.prefab) && <span className="ml-2 text-xs text-muted-foreground">{item.prefab}</span>}</button>; })}</div>}</div>
     {items.map((item, index) => <div key={`${item.prefab}-${index}`} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_90px_90px_36px]"><div className="min-w-0"><p className="truncate font-medium">{item.friendly_name}</p><p className="truncate text-xs text-muted-foreground">{item.prefab}</p></div><Input type="number" min="1" value={item.quantity} onChange={(event) => setItems(items.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: event.target.value } : row))} aria-label="Quantidade" /><Input type="number" min="1" max={item.maxQuality || undefined} value={item.quality} onChange={(event) => setItems(items.map((row, rowIndex) => rowIndex === index ? { ...row, quality: event.target.value } : row))} aria-label="Qualidade" /><Button type="button" size="icon" variant="ghost" onClick={() => setItems(items.filter((_, rowIndex) => rowIndex !== index))}><X className="h-4 w-4 text-red-400" /></Button>{!item.maxQuality && <p className="text-xs text-amber-400 sm:col-span-4">Limite de qualidade desconhecido para este item.</p>}</div>)}
   </div>;
 }
@@ -71,9 +78,10 @@ export default function Vip() {
   const playerGroups = useMemo(() => {
     const groups = new Map();
     for (const player of playersQuery.data || []) { const steamid = String(player.steamid || '').trim(); if (!steamid) continue; if (!groups.has(steamid)) groups.set(steamid, { steamid, records: [], names: new Set() }); const group = groups.get(steamid); group.records.push(player); namesFor(player).forEach((name) => group.names.add(name)); }
-    return [...groups.values()].map((group) => ({ ...group, names: [...group.names], servers: [...new Set(group.records.map((row) => row.server).filter(Boolean))] })).sort((a, b) => (a.names[0] || a.steamid).localeCompare(b.names[0] || b.steamid, 'pt-BR'));
+    return [...groups.values()].map((group) => ({ ...group, names: [...group.names].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })), servers: [...new Set(group.records.map((row) => row.server).filter(Boolean))] })).sort((a, b) => (a.names[0] || a.steamid).localeCompare(b.names[0] || b.steamid, 'pt-BR', { sensitivity: 'base' }));
   }, [playersQuery.data]);
-  const matchingPlayers = playerGroups.filter((group) => !playerSearch.trim() || `${group.names.join(' ')} ${group.steamid}`.toLowerCase().includes(playerSearch.trim().toLowerCase())).slice(0, 30);
+  const normalizedPlayerSearch = normalizeSearch(playerSearch);
+  const matchingPlayers = playerGroups.filter((group) => !normalizedPlayerSearch || normalizeSearch(`${group.names.join(' ')} ${group.steamid}`).includes(normalizedPlayerSearch)).slice(0, 50);
   const selectedGroup = playerGroups.find((group) => group.steamid === delivery.playerKey);
   const invalidate = () => { queryClient.invalidateQueries({ queryKey: ['vip-packages'] }); queryClient.invalidateQueries({ queryKey: ['vip-deliveries'] }); queryClient.invalidateQueries({ queryKey: ['financas'] }); };
   const savePackage = useMutation({ mutationFn: () => vipApi({ action: 'save-package', id: packageForm.id, name: packageForm.name, description: packageForm.description, price: packageForm.price, active: packageForm.active, items: packageForm.items }), onSuccess: () => { setPackageDialog(false); setPackageForm(emptyPackage()); invalidate(); }, onError: (error) => setMessage(error.message) });
