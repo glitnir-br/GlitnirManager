@@ -65,6 +65,9 @@ export default async function handler(req, res) {
     if (action === 'list-deliveries') { const { data, error } = await admin.from('vip_deliveries').select('*, vip_delivery_items(*), vip_memberships(active,revoked_at,revoked_by,revocation_reason)').order('created_at', { ascending: false }); if (error) throw error; return send(res, 200, { deliveries: data }); }
     if (action === 'check-player-online') {
       if (!validServer(req.body?.server) || !/^\d{10,25}$/.test(String(req.body?.steamid || ''))) return send(res, 400, { error: 'Jogador ou servidor inválido.' });
+      const { data: membership, error: membershipError } = await admin.from('vip_memberships').select('active,created_at,revoked_at').eq('server', req.body.server).eq('steamid', String(req.body.steamid)).maybeSingle();
+      if (membershipError) throw membershipError;
+      if (membership) return send(res, 200, { online: false, alreadyVip: membership.active, alreadyReceived: true, membership, server: req.body.server, steamid: String(req.body.steamid) });
       const output = await executeRcon(req.body.server, `findPlayer ${req.body.steamid}`);
       return send(res, 200, { online: playerIsOnline(output, String(req.body.steamid)), server: req.body.server, steamid: String(req.body.steamid) });
     }
@@ -72,6 +75,9 @@ export default async function handler(req, res) {
       if (!validServer(req.body?.server) || !/^\d{10,25}$/.test(String(req.body?.steamid || '')) || !req.body?.characterName || !req.body?.packageId || !req.body?.playerId) return send(res, 400, { error: 'Dados da entrega inválidos.' });
       const { data: player, error: playerError } = await admin.from('players').select('id,steamid,server').eq('id', req.body.playerId).eq('steamid', req.body.steamid).eq('server', req.body.server).maybeSingle();
       if (playerError) throw playerError; if (!player) return send(res, 400, { error: 'O jogador não pertence ao servidor selecionado.' });
+      const { data: existingMembership, error: membershipError } = await admin.from('vip_memberships').select('active').eq('server', player.server).eq('steamid', player.steamid).maybeSingle();
+      if (membershipError) throw membershipError;
+      if (existingMembership) return send(res, 409, { error: existingMembership.active ? 'Este jogador já é VIP neste servidor.' : 'Este jogador já recebeu o VIP neste servidor e não pode receber novamente.' });
       const onlineOutput = await executeRcon(player.server, `findPlayer ${player.steamid}`);
       if (!playerIsOnline(onlineOutput, player.steamid)) return send(res, 409, { error: 'O jogador está offline. Nenhum VIP, lançamento financeiro ou item foi registrado.' });
       const { data: packageData, error: packageError } = await admin.from('vip_packages').select('active,vip_package_items(*)').eq('id', req.body.packageId).maybeSingle();
