@@ -83,7 +83,7 @@ const AuthenticatedApp = () => {
         <Route path="/mods" element={<PagePermissionGuard page="mods"><Mods /></PagePermissionGuard>} />
         <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
         <Route path="/administracao" element={<PagePermissionGuard page="administracao"><Administracao /></PagePermissionGuard>} />
-        <Route path="/personagem" element={<Personagem />} />
+        <Route path="/personagem" element={<PagePermissionGuard page="personagem"><Personagem /></PagePermissionGuard>} />
         <Route path="/admin-access" element={<Navigate to="/administracao" replace />} />
         <Route path="/admin-settings" element={<Navigate to="/administracao?tab=configuracoes" replace />} />
         <Route path="/security-settings" element={<Navigate to="/administracao?tab=seguranca" replace />} />

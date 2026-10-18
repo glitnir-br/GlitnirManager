@@ -9,6 +9,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'servidores', label: 'Servidores' },
   { key: 'jogadores', label: 'Jogadores' },
+  { key: 'personagem', label: 'Personagem' },
   { key: 'mods', label: 'Mods' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'administracao', label: 'Administração' },
@@ -16,7 +17,7 @@ export const PAGE_PERMISSIONS = [
 
 const LEGACY_PERMISSIONS = {
   adm_principal: PAGE_PERMISSIONS.map(({ key }) => key),
-  administrador: ['dashboard', 'servidores', 'jogadores', 'mods', 'financeiro', 'administracao'],
+  administrador: ['dashboard', 'servidores', 'jogadores', 'personagem', 'mods', 'financeiro', 'administracao'],
   financeiro: ['dashboard', 'jogadores', 'financeiro'],
   visitante: ['dashboard', 'jogadores', 'mods'],
 };

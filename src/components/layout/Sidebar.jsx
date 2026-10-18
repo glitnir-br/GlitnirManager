@@ -10,10 +10,10 @@ const allNavItems = [
   { label: 'Dashboard',       path: '/',                 icon: LayoutDashboard, roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Servidores',      path: '/servidores',       icon: Server,          roles: ['adm_principal', 'administrador'] },
   { label: 'Jogadores',       path: '/jogadores',        icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
+  { label: 'Personagem',      path: '/personagem',       icon: UserCircle,      roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Administração',   path: '/administracao',    icon: Shield,          roles: ['adm_principal', 'administrador'] },
-  { label: 'Personagem',      path: '/personagem',       icon: UserCircle,      roles: ['adm_principal'], strictRoles: true },
 ];
 
 export default function Sidebar({ open, setOpen }) {
@@ -22,7 +22,6 @@ export default function Sidebar({ open, setOpen }) {
   const { hasPage } = usePermissions();
   const systemRole = ['adm_principal', 'administrador', 'financeiro', 'visitante'].includes(user?.role);
   const navItems = allNavItems.filter((item) => {
-    if (item.strictRoles) return item.roles.includes(user?.role);
     return (!systemRole || item.roles.includes(user?.role)) && hasPage(item.path === '/' ? 'dashboard' : item.path.slice(1));
   });
 

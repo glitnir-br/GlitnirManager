@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const ROLES = new Set(['adm_principal']);
 const MAX_CHARACTER_SIZE = 8 * 1024 * 1024;
-const MAX_ACTIVITY_FILES = 3;
+const MAX_ACTIVITY_FILES = 5;
 const MAX_ACTIVITY_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_ROOTS = [
   '/.config/unity3d/IronGate/Valheim/characters_local',
@@ -57,7 +56,11 @@ async function auth(req) {
   const { data, error: userError } = await admin.auth.getUser(token);
   if (userError || !data.user?.email) { const error = new Error('Sessão inválida.'); error.status = 401; throw error; }
   const { data: profile } = await admin.from('user_profiles').select('role,status').eq('email', data.user.email).maybeSingle();
-  if (!profile || !['ativo', 'aprovado'].includes(profile.status) || !ROLES.has(profile.role)) { const error = new Error('Apenas o ADM principal pode inspecionar personagens.'); error.status = 403; throw error; }
+  if (!profile || !['ativo', 'aprovado'].includes(profile.status)) { const error = new Error('Usuário sem acesso ativo.'); error.status = 403; throw error; }
+  const { data: permissions, error: permissionError } = await admin.from('role_permissions').select('page_key,allowed').eq('role_key', profile.role);
+  if (permissionError) throw permissionError;
+  const allowed = profile.role === 'adm_principal' || (permissions?.length ? permissions.some((item) => item.page_key === 'personagem' && item.allowed) : profile.role === 'administrador');
+  if (!allowed) { const error = new Error('Seu cargo não possui permissão para acessar Personagem.'); error.status = 403; throw error; }
 }
 
 async function charactersIn(server) {
