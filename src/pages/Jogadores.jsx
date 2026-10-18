@@ -1,20 +1,24 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ShieldBan, Users } from 'lucide-react';
+import { History, ShieldBan, Users } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/AuthContext';
 import { SERVERS, useServer } from '@/lib/ServerContext';
 import Players from '@/pages/Players';
 import Banidos from '@/pages/Banidos';
+import { ItemDeliveryHistory } from '@/components/players/ItemDelivery';
+import { usePermissions } from '@/lib/PermissionsContext';
 
 export default function Jogadores() {
   const { user } = useAuth();
+  const { hasPage } = usePermissions();
   const { server, setServer } = useServer();
   const [searchParams, setSearchParams] = useSearchParams();
   const canViewBanned = ['adm_principal', 'administrador', 'visitante'].includes(user?.role);
+  const canViewDeliveries = hasPage('player_item_deliveries');
   const requestedTab = searchParams.get('tab');
-  const activeTab = canViewBanned && requestedTab === 'banidos' ? 'banidos' : 'players';
+  const activeTab = canViewDeliveries && requestedTab === 'envios' ? 'envios' : canViewBanned && requestedTab === 'banidos' ? 'banidos' : 'players';
 
   const changeTab = (tab) => {
     setSearchParams(tab === 'players' ? {} : { tab }, { replace: true });
@@ -26,11 +30,12 @@ export default function Jogadores() {
       <div className="w-full sm:w-52"><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Servidor</label><Select value={server} onValueChange={setServer}><SelectTrigger className="bg-secondary font-semibold"><SelectValue /></SelectTrigger><SelectContent>{SERVERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></div>
     </div>
     <Tabs value={activeTab} onValueChange={changeTab}>
-      <TabsList className={`grid w-full ${canViewBanned ? 'grid-cols-2' : 'grid-cols-1'} sm:w-auto`}>
+      <TabsList className={`grid w-full ${canViewBanned && canViewDeliveries ? 'grid-cols-3' : canViewBanned || canViewDeliveries ? 'grid-cols-2' : 'grid-cols-1'} sm:w-auto`}>
         <TabsTrigger value="players" className="gap-2"><Users className="h-4 w-4" />Players</TabsTrigger>
         {canViewBanned && <TabsTrigger value="banidos" className="gap-2 data-[state=active]:text-red-400"><ShieldBan className="h-4 w-4" />Banidos</TabsTrigger>}
+        {canViewDeliveries && <TabsTrigger value="envios" className="gap-2"><History className="h-4 w-4" />Histórico de envios</TabsTrigger>}
       </TabsList>
     </Tabs>
-    {activeTab === 'banidos' ? <Banidos embedded /> : <Players embedded />}
+    {activeTab === 'envios' ? <ItemDeliveryHistory server={server} /> : activeTab === 'banidos' ? <Banidos embedded /> : <Players embedded />}
   </div>;
 }

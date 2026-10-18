@@ -10,6 +10,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'servidores', label: 'Servidores' },
   { key: 'rcon', label: 'Rcon' },
   { key: 'jogadores', label: 'Jogadores' },
+  { key: 'player_item_deliveries', label: 'Jogadores · Enviar itens e consultar histórico' },
   { key: 'vip', label: 'VIP' },
   { key: 'personagem', label: 'Personagem' },
   { key: 'mods', label: 'Mods' },

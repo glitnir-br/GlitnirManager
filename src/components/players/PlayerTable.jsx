@@ -3,7 +3,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, AlertTriangle, GripVertical } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle, Gift, GripVertical } from 'lucide-react';
 import PlayerEditRow from './PlayerEditRow';
 
 const statusStyles = {
@@ -13,7 +13,7 @@ const statusStyles = {
   suspenso: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
 };
 
-export default function PlayerTable({ players, onUpdate, onDelete, onReorder, canReorder = true }) {
+export default function PlayerTable({ players, onUpdate, onDelete, onReorder, onSendItem, canReorder = true }) {
   const [editingId, setEditingId] = useState(null);
 
   const handleSave = async (id, data) => {
@@ -125,6 +125,7 @@ export default function PlayerTable({ players, onUpdate, onDelete, onReorder, ca
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
+                                  {onSendItem && <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar item" onClick={() => onSendItem(player)}><Gift className="h-4 w-4 text-primary" /></Button>}
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(player.id)}>
                                     <Pencil className="w-4 h-4 text-muted-foreground" />
                                   </Button>

@@ -10,6 +10,8 @@ import { useServer } from '@/lib/ServerContext';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/dbClient';
 import { RefreshCw } from 'lucide-react';
+import { ItemDeliveryDialog } from '@/components/players/ItemDelivery';
+import { usePermissions } from '@/lib/PermissionsContext';
 
 async function checkDuplicates(players, current) {
   const isDuplicate = players.some(
@@ -29,11 +31,13 @@ const formatLatestSync = (records, field) => {
 export default function Players({ embedded = false }) {
   const { server, serverLabel } = useServer();
   const { user } = useAuth();
+  const { hasPage } = usePermissions();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [guildFilter, setGuildFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('character_asc');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [itemPlayer, setItemPlayer] = useState(null);
   const [syncMessage, setSyncMessage] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 15;
@@ -233,6 +237,7 @@ export default function Players({ embedded = false }) {
         onDelete={(id) => deleteMutation.mutateAsync(id)}
         onReorder={handleReorder}
         canReorder={sortOrder === 'manual'}
+        onSendItem={hasPage('player_item_deliveries') ? setItemPlayer : undefined}
       />
       {filtered.length > pageSize && <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Página {page} de {totalPages} · {filtered.length} players</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Anterior</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Próxima</Button></div></div>}
 
@@ -243,6 +248,7 @@ export default function Players({ embedded = false }) {
         server={server}
         players={players}
       />
+      <ItemDeliveryDialog open={Boolean(itemPlayer)} onOpenChange={(open) => { if (!open) setItemPlayer(null); }} player={itemPlayer} server={server} onComplete={(delivery) => { queryClient.invalidateQueries({ queryKey: ['item-deliveries', server] }); setSyncMessage(`Item enviado para ${delivery.character_name}: ${delivery.quantity}× ${delivery.friendly_name}.`); }} />
     </div>
   );
 }
