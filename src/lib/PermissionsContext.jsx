@@ -8,6 +8,7 @@ const PermissionsContext = createContext();
 export const PAGE_PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'servidores', label: 'Servidores' },
+  { key: 'rcon', label: 'Rcon' },
   { key: 'jogadores', label: 'Jogadores' },
   { key: 'personagem', label: 'Personagem' },
   { key: 'mods', label: 'Mods' },
@@ -17,7 +18,7 @@ export const PAGE_PERMISSIONS = [
 
 const LEGACY_PERMISSIONS = {
   adm_principal: PAGE_PERMISSIONS.map(({ key }) => key),
-  administrador: ['dashboard', 'servidores', 'jogadores', 'personagem', 'mods', 'financeiro', 'administracao'],
+  administrador: ['dashboard', 'servidores', 'rcon', 'jogadores', 'personagem', 'mods', 'financeiro', 'administracao'],
   financeiro: ['dashboard', 'jogadores', 'financeiro'],
   visitante: ['dashboard', 'jogadores', 'mods'],
 };
