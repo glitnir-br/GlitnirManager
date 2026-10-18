@@ -9,6 +9,7 @@ import {
   TrendingDown,
   TrendingUp,
   RefreshCw,
+  Server,
   UserRoundX,
   Users,
 } from 'lucide-react';
@@ -50,6 +51,17 @@ const formatLatestSync = (records) => {
   return latest ? new Date(latest).toLocaleString('pt-BR') : 'Nunca sincronizado';
 };
 
+async function fetchOnlinePlayers() {
+  if (!supabase) throw new Error('A consulta exige conexão com o Supabase.');
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sessão expirada. Entre novamente no sistema.');
+  const response = await fetch('/api/online-players', { headers: { Authorization: `Bearer ${token}` } });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Falha ao consultar jogadores online.');
+  return result;
+}
+
 const uniquePlayersBySteamId = (records) => {
   const grouped = new Map();
   records.forEach((player) => {
@@ -81,6 +93,13 @@ export default function Dashboard() {
   const comprasQuery = useQuery({ queryKey: ['dashboard', 'compras'], queryFn: () => base44.entities.Compra.list(), ...queryOptions });
   const despesasQuery = useQuery({ queryKey: ['dashboard', 'despesas'], queryFn: () => base44.entities.Despesa.list(), ...queryOptions });
   const banidosQuery = useQuery({ queryKey: ['dashboard', 'banidos'], queryFn: () => base44.entities.Banido.list(), ...queryOptions });
+  const onlinePlayersQuery = useQuery({
+    queryKey: ['dashboard', 'online-players'],
+    queryFn: fetchOnlinePlayers,
+    refetchOnWindowFocus: false,
+    retry: false,
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
     if (!syncMessage) return undefined;
@@ -233,6 +252,42 @@ export default function Dashboard() {
           {syncMessage}
         </div>
       )}
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold text-foreground"><Users className="h-5 w-5 text-primary" />Jogadores online</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Consulta em tempo real dos dois servidores</p>
+          </div>
+          <Button variant="outline" className="gap-2" disabled={onlinePlayersQuery.isFetching} onClick={() => onlinePlayersQuery.refetch()}>
+            <RefreshCw className={`h-4 w-4 ${onlinePlayersQuery.isFetching ? 'animate-spin' : ''}`} />
+            {onlinePlayersQuery.isFetching ? 'Atualizando...' : 'Atualizar jogadores'}
+          </Button>
+        </div>
+        {onlinePlayersQuery.isError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{onlinePlayersQuery.error.message}</div>}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {SERVERS.map((server) => {
+            const result = onlinePlayersQuery.data?.servers?.[server.value];
+            const online = result?.players || [];
+            return <div key={server.value} className="overflow-hidden rounded-xl border border-border bg-background/30">
+              <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-4 py-3">
+                <h3 className="flex items-center gap-2 font-semibold"><Server className="h-4 w-4 text-primary" />{server.label}</h3>
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{onlinePlayersQuery.isLoading ? '—' : online.length} online</span>
+              </div>
+              <div className="space-y-2 p-3">
+                {onlinePlayersQuery.isLoading && <div className="flex items-center justify-center py-8"><RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+                {!onlinePlayersQuery.isLoading && result?.error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{result.error}</p>}
+                {!onlinePlayersQuery.isLoading && !result?.error && !online.length && <p className="py-8 text-center text-sm text-muted-foreground">Nenhum jogador online.</p>}
+                {online.map((player) => <div key={player.steamid} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <div className="min-w-0"><p className="truncate text-sm font-medium">{player.name || 'Sem nome'}</p><p className="text-xs text-muted-foreground">Steam ID {player.steamid}</p></div>
+                  {player.platform && <span className="max-w-40 truncate text-xs text-muted-foreground" title={player.platform}>{player.platform}</span>}
+                </div>)}
+              </div>
+            </div>;
+          })}
+        </div>
+        {onlinePlayersQuery.data?.updatedAt && <p className="mt-3 text-right text-xs text-muted-foreground">Consultado em {new Date(onlinePlayersQuery.data.updatedAt).toLocaleString('pt-BR')}</p>}
+      </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Players ativos" value={activePlayers.length} icon={Users} glowColor="#3b82f6" subtitle={`${whitelistPlayers.length} na whitelist`} />
