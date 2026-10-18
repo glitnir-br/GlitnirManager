@@ -75,23 +75,15 @@ async function charactersIn(server) {
   return results;
 }
 
-async function activityFilesIn(server) {
-  const root = '/BepInEx/config/AzuAntiCheat/PlayerActivity';
-  const files = [];
-  const visit = async (directory) => {
-    if (files.length >= MAX_ACTIVITY_FILES) return;
-    let listing;
-    try { listing = await ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(directory)}`); } catch (error) { if (error.status === 404) return; throw error; }
-    const entries = (listing.data || []).map((entry) => entry.attributes || entry).sort((a, b) => String(b.name).localeCompare(String(a.name)));
-    for (const entry of entries) {
-      if (files.length >= MAX_ACTIVITY_FILES) break;
-      const path = `${directory}/${entry.name}`;
-      if (entry.is_file === false) await visit(path);
-      else if (/\.(?:log|txt|csv|json)$/i.test(entry.name || '') && Number(entry.size || 0) <= MAX_ACTIVITY_FILE_SIZE) files.push({ path, modifiedAt: entry.modified_at || null });
-    }
-  };
-  await visit(root);
-  return files;
+async function activityFilesIn(server, steamid) {
+  const directory = `/BepInEx/config/AzuAntiCheat/PlayerActivity/${steamid}`;
+  let listing;
+  try { listing = await ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(directory)}`); } catch (error) { if (error.status === 404) return []; throw error; }
+  return (listing.data || []).map((entry) => entry.attributes || entry)
+    .filter((entry) => entry.is_file !== false && /\.(?:log|txt|csv|json)$/i.test(entry.name || '') && Number(entry.size || 0) <= MAX_ACTIVITY_FILE_SIZE)
+    .sort((a, b) => String(b.name).localeCompare(String(a.name)))
+    .slice(0, MAX_ACTIVITY_FILES)
+    .map((entry) => ({ path: `${directory}/${entry.name}`, modifiedAt: entry.modified_at || null }));
 }
 
 function matchingActivityLines(content, steamid, name) {
@@ -107,7 +99,7 @@ function parseActivityLine(line) {
 }
 
 async function activityFor(server, steamid, name) {
-  const files = await activityFilesIn(server);
+  const files = await activityFilesIn(server, steamid);
   const records = await mapConcurrent(files, 1, async (file) => {
     const content = await ptero(`/api/client/servers/${serverId(server)}/files/contents?file=${encodeURIComponent(file.path)}`, { text: true });
     return matchingActivityLines(content, steamid, name).map((event) => ({ server, path: file.path, modifiedAt: file.modifiedAt, ...event }));
