@@ -1,4 +1,5 @@
 import itemCatalog from '@/data/valheim-item-catalog.json';
+import modpackCatalog from '@/data/glitnir-prefab-catalog.json';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const DIFFICULTIES = ['Geral', 'Qualquer', 'Martelo', 'Casual', 'Muito fácil', 'Fácil', 'Normal', 'Difícil', 'Muito difícil', 'Extremo'];
@@ -16,6 +17,7 @@ function stableHash(value) {
 }
 
 const catalogByHash = new Map(Object.values(itemCatalog).map((item) => [stableHash(item.prefab), item]));
+for (const [hash, item] of Object.entries(modpackCatalog)) catalogByHash.set(Number(hash), item);
 
 class Reader {
   constructor(buffer, start = 0, end = buffer.byteLength) { this.view = new DataView(buffer, start, end - start); this.bytes = new Uint8Array(buffer, start, end - start); this.p = 0; }
