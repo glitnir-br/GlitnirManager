@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink, FolderCog, Server, Terminal } from 'lucide-react';
+import { Crown, LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink, FolderCog, Server, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -11,6 +11,7 @@ const allNavItems = [
   { label: 'Servidores',      path: '/servidores',       icon: Server,          roles: ['adm_principal', 'administrador'] },
   { label: 'Rcon',            path: '/rcon',             icon: Terminal,        roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Jogadores',       path: '/jogadores',        icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
+  { label: 'VIP',             path: '/vip',              icon: Crown,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Personagem',      path: '/personagem',       icon: UserCircle,      roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },

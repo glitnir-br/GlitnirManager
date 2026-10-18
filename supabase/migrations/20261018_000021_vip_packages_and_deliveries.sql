@@ -69,3 +69,5 @@ begin
 end $$;
 revoke all on function public.create_vip_delivery(uuid,uuid,uuid,text,text,text,timestamptz,text,text,text,jsonb) from public;
 grant execute on function public.create_vip_delivery(uuid,uuid,uuid,text,text,text,timestamptz,text,text,text,jsonb) to service_role;
+
+notify pgrst, 'reload schema';
