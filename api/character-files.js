@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const ROLES = new Set(['adm_principal']);
 const MAX_CHARACTER_SIZE = 8 * 1024 * 1024;
-const MAX_ACTIVITY_FILES = 90;
+const MAX_ACTIVITY_FILES = 3;
 const MAX_ACTIVITY_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_ROOTS = [
   '/.config/unity3d/IronGate/Valheim/characters_local',
@@ -21,14 +21,22 @@ function characterRoots() { return [...new Set([...(process.env.PTERODACTYL_CHAR
 function safePath(path) { return typeof path === 'string' && path.startsWith('/') && !path.includes('..') && !path.includes('\\'); }
 function characterFile(path, file) {
   const backup = file.name.match(/_backup_(?:auto-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.fch$/i);
-  return { path, name: file.name, size: file.size || 0, backup: Boolean(backup), backupAt: backup ? `${backup[3]}/${backup[2]}/${backup[1]} ${backup[4]}:${backup[5]}:${backup[6]}` : null };
+  const baseName = file.name.replace(/\.fch$/i, '').replace(/_backup_(?:auto-)?\d{8}-\d{6}$/i, '');
+  const identity = baseName.match(/^Steam_(\d+)_(.+)$/i);
+  return { path, name: file.name, characterName: identity?.[2] || baseName, steamId: identity?.[1] || '', size: file.size || 0, backup: Boolean(backup), backupAt: backup ? `${backup[3]}/${backup[2]}/${backup[1]} ${backup[4]}:${backup[5]}:${backup[6]}` : null };
 }
 
 async function ptero(path, options = {}) {
   const base = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
   const key = process.env.PTERODACTYL_API_KEY;
   if (!base || !key) throw new Error('Configuração do Pterodactyl incompleta.');
-  const response = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' } });
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' } });
+    if (response.status !== 429 || attempt === 2) break;
+    const retryAfter = Number(response.headers.get('retry-after'));
+    await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : (attempt + 1) * 1200));
+  }
   if (!response.ok) {
     const error = new Error(`Pterodactyl respondeu ${response.status}.`);
     error.status = response.status;
@@ -100,7 +108,7 @@ function parseActivityLine(line) {
 
 async function activityFor(server, steamid, name) {
   const files = await activityFilesIn(server);
-  const records = await mapConcurrent(files, 8, async (file) => {
+  const records = await mapConcurrent(files, 1, async (file) => {
     const content = await ptero(`/api/client/servers/${serverId(server)}/files/contents?file=${encodeURIComponent(file.path)}`, { text: true });
     return matchingActivityLines(content, steamid, name).map((event) => ({ server, path: file.path, modifiedAt: file.modifiedAt, ...event }));
   });
@@ -122,13 +130,8 @@ export default async function handler(req, res) {
     const action = req.body?.action || 'list';
     if (action === 'list') {
       const listings = await Promise.all(['server_1', 'server_2'].map(async (server) => [server, await charactersIn(server)]));
-      const grouped = new Map();
-      for (const [server, files] of listings) for (const file of files) {
-        const item = grouped.get(file.path) || { ...file, servers: [] };
-        item.servers.push(server);
-        grouped.set(file.path, item);
-      }
-      return send(res, 200, { characters: [...grouped.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) });
+      const characters = listings.flatMap(([server, files]) => files.map((file) => ({ ...file, server })));
+      return send(res, 200, { characters: characters.sort((a, b) => `${a.characterName}-${a.steamId}`.localeCompare(`${b.characterName}-${b.steamId}`, 'pt-BR')) });
     }
     if (action === 'activity') {
       const steamid = String(req.body?.steamid || ''); const name = String(req.body?.name || '');
