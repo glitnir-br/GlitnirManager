@@ -5,6 +5,7 @@ const MAX_CHARACTER_SIZE = 8 * 1024 * 1024;
 const MAX_ACTIVITY_FILES = 90;
 const MAX_ACTIVITY_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_ROOTS = [
+  '/.config/unity3d/IronGate/Valheim/characters_local',
   '/.config/unity3d/IronGate/Valheim/characters',
   '/.config/unity3d/IronGate/Valheim/Characters',
   '/characters',
@@ -18,6 +19,10 @@ function serverId(server) { return process.env[server === 'server_1' ? 'PTERODAC
 function validServer(server) { return server === 'server_1' || server === 'server_2'; }
 function characterRoots() { return [...new Set([...(process.env.PTERODACTYL_CHARACTER_PATHS || '').split(',').map((path) => path.trim()).filter(Boolean), ...DEFAULT_ROOTS])]; }
 function safePath(path) { return typeof path === 'string' && path.startsWith('/') && !path.includes('..') && !path.includes('\\'); }
+function characterFile(path, file) {
+  const backup = file.name.match(/_backup_(?:auto-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.fch$/i);
+  return { path, name: file.name, size: file.size || 0, backup: Boolean(backup), backupAt: backup ? `${backup[3]}/${backup[2]}/${backup[1]} ${backup[4]}:${backup[5]}:${backup[6]}` : null };
+}
 
 async function ptero(path, options = {}) {
   const base = process.env.PTERODACTYL_URL?.replace(/\/$/, '');
@@ -54,11 +59,10 @@ async function charactersIn(server) {
       const listing = await ptero(`/api/client/servers/${serverId(server)}/files/list?directory=${encodeURIComponent(root)}`);
       for (const entry of listing.data || []) {
         const file = entry.attributes || entry;
-        if (file.is_file !== false && /\.fch$/i.test(file.name || '')) results.push({ path: `${root}/${file.name}`, name: file.name, size: file.size || 0 });
+        if (file.is_file !== false && /\.fch$/i.test(file.name || '')) results.push(characterFile(`${root}/${file.name}`, file));
       }
-    } catch (error) {
-      if (error.status !== 404) throw error;
-    }
+      if (results.length) return results;
+    } catch (error) { if (![400, 404, 500].includes(error.status)) throw error; }
   }
   return results;
 }
