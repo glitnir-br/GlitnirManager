@@ -88,7 +88,7 @@ async function activityFilesIn(server, steamid) {
 
 function matchingActivityLines(content, steamid, name) {
   const terms = [String(steamid || ''), String(name || '').trim()].filter(Boolean).map((term) => term.toLowerCase());
-  return content.split(/\r?\n/).filter((line) => { const value = line.toLowerCase(); return terms.some((term) => value.includes(term)); }).slice(-80).map(parseActivityLine);
+  return content.split(/\r?\n/).filter((line) => { const value = line.toLowerCase(); return terms.some((term) => value.includes(term)); }).map(parseActivityLine);
 }
 
 function parseActivityLine(line) {
@@ -115,6 +115,31 @@ async function mapConcurrent(values, limit, callback) {
   return result;
 }
 
+function activityMoment(event) { return `${event.path.split('/').pop()?.replace(/\.[^.]+$/, '') || ''} ${event.time.replace(' UTC', '')}`; }
+function ranked(events, type, field) {
+  const counts = {};
+  for (const event of events) if (event.type === type && event.fields[field]) counts[event.fields[field]] = (counts[event.fields[field]] || 0) + Number(event.fields.stack || 1);
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, count]) => ({ name, count }));
+}
+function summarizeActivity(events) {
+  const ordered = [...events].sort((a, b) => activityMoment(a).localeCompare(activityMoment(b)));
+  const eventCounts = ordered.reduce((counts, event) => ({ ...counts, [event.type]: (counts[event.type] || 0) + 1 }), {});
+  const sessions = []; let connected = null;
+  for (const event of ordered) {
+    if (event.type === 'CONNECTED') connected = event;
+    if (event.type === 'DISCONNECTED') { sessions.push({ start: connected ? activityMoment(connected) : null, end: activityMoment(event), duration: event.fields.session || 'unknown', position: event.fields.pos || null }); connected = null; }
+  }
+  if (connected) sessions.push({ start: activityMoment(connected), end: null, duration: 'Em aberto', position: null });
+  const modCounts = [...new Set(ordered.filter((event) => event.type === 'MOD_LIST').map((event) => Number(event.fields.count)).filter(Number.isFinite))];
+  const alerts = [];
+  const unknownSessions = sessions.filter((session) => session.duration === 'unknown').length;
+  if (unknownSessions) alerts.push(`${unknownSessions} desconexão(ões) sem duração de sessão.`);
+  if ((eventCounts.BUILD_REMOVE || 0) >= 50) alerts.push(`Volume elevado de remoções: ${eventCounts.BUILD_REMOVE}.`);
+  if ((eventCounts.ITEM_DROP || 0) >= 100) alerts.push(`Volume elevado de itens descartados: ${eventCounts.ITEM_DROP}.`);
+  if (modCounts.length > 1) alerts.push(`Quantidade de mods variou entre as sessões: ${modCounts.join(', ')}.`);
+  return { total: ordered.length, connections: eventCounts.CONNECTED || 0, disconnections: eventCounts.DISCONNECTED || 0, eventCounts, sessions: sessions.slice(-20).reverse(), pickups: ranked(ordered, 'PICKUP', 'item'), drops: ranked(ordered, 'ITEM_DROP', 'item'), builds: ranked(ordered, 'BUILD', 'piece'), removals: ranked(ordered, 'BUILD_REMOVE', 'piece'), modCounts, alerts, lastActivity: ordered.length ? activityMoment(ordered.at(-1)) : null };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
   try {
@@ -129,9 +154,8 @@ export default async function handler(req, res) {
       const steamid = String(req.body?.steamid || ''); const name = String(req.body?.name || ''); const server = req.body?.server;
       if (!/^\d{10,25}$/.test(steamid)) return send(res, 400, { error: 'Steam ID inválido.' });
       if (!validServer(server)) return send(res, 400, { error: 'Servidor do personagem inválido.' });
-      const activity = (await activityFor(server, steamid, name)).sort((a, b) => `${b.path}/${b.time}`.localeCompare(`${a.path}/${a.time}`)).slice(0, 160);
-      const eventCounts = activity.reduce((counts, event) => ({ ...counts, [event.type]: (counts[event.type] || 0) + 1 }), {});
-      return send(res, 200, { activity, summary: { total: activity.length, connections: eventCounts.CONNECTED || 0, disconnections: eventCounts.DISCONNECTED || 0, eventCounts } });
+      const allActivity = (await activityFor(server, steamid, name)).sort((a, b) => `${b.path}/${b.time}`.localeCompare(`${a.path}/${a.time}`));
+      return send(res, 200, { activity: allActivity, summary: summarizeActivity(allActivity) });
     }
     if (action !== 'read' || !validServer(req.body?.server) || !safePath(req.body?.path) || !/\.fch$/i.test(req.body.path)) return send(res, 400, { error: 'Solicitação de personagem inválida.' });
     const payload = await ptero(`/api/client/servers/${serverId(req.body.server)}/files/contents?file=${encodeURIComponent(req.body.path)}`, { binary: true });
