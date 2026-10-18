@@ -134,9 +134,10 @@ export default async function handler(req, res) {
       return send(res, 200, { characters: characters.sort((a, b) => `${a.characterName}-${a.steamId}`.localeCompare(`${b.characterName}-${b.steamId}`, 'pt-BR')) });
     }
     if (action === 'activity') {
-      const steamid = String(req.body?.steamid || ''); const name = String(req.body?.name || '');
+      const steamid = String(req.body?.steamid || ''); const name = String(req.body?.name || ''); const server = req.body?.server;
       if (!/^\d{10,25}$/.test(steamid)) return send(res, 400, { error: 'Steam ID inválido.' });
-      const activity = (await Promise.all(['server_1', 'server_2'].map((server) => activityFor(server, steamid, name)))).flat().sort((a, b) => `${b.path}/${b.time}`.localeCompare(`${a.path}/${a.time}`)).slice(0, 160);
+      if (!validServer(server)) return send(res, 400, { error: 'Servidor do personagem inválido.' });
+      const activity = (await activityFor(server, steamid, name)).sort((a, b) => `${b.path}/${b.time}`.localeCompare(`${a.path}/${a.time}`)).slice(0, 160);
       const eventCounts = activity.reduce((counts, event) => ({ ...counts, [event.type]: (counts[event.type] || 0) + 1 }), {});
       return send(res, 200, { activity, summary: { total: activity.length, connections: eventCounts.CONNECTED || 0, disconnections: eventCounts.DISCONNECTED || 0, eventCounts } });
     }

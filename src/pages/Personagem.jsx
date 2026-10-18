@@ -20,22 +20,22 @@ async function characterApi(body) { const { data } = await supabase.auth.getSess
 
 export default function Personagem() {
   const { user } = useAuth();
-  const [result, setResult] = useState(null); const [file, setFile] = useState(null); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const [search, setSearch] = useState(''); const [characterSearch, setCharacterSearch] = useState(''); const [characterOpen, setCharacterOpen] = useState(false); const [activitySteamId, setActivitySteamId] = useState('');
+  const [result, setResult] = useState(null); const [file, setFile] = useState(null); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const [search, setSearch] = useState(''); const [characterSearch, setCharacterSearch] = useState(''); const [characterOpen, setCharacterOpen] = useState(false); const [activitySteamId, setActivitySteamId] = useState(''); const [activityServer, setActivityServer] = useState('');
   const characterQuery = useQuery({ queryKey: ['pterodactyl-characters'], queryFn: () => characterApi({ action: 'list' }), staleTime: 30_000, enabled: user?.role === 'adm_principal' });
-  const activityQuery = useQuery({ queryKey: ['pterodactyl-character-activity', activitySteamId, result?.name], queryFn: () => characterApi({ action: 'activity', steamid: activitySteamId, name: result.name }), staleTime: 30_000, enabled: user?.role === 'adm_principal' && Boolean(result?.name) && /^\d{10,25}$/.test(activitySteamId) });
+  const activityQuery = useQuery({ queryKey: ['pterodactyl-character-activity', activityServer, activitySteamId, result?.name], queryFn: () => characterApi({ action: 'activity', server: activityServer, steamid: activitySteamId, name: result.name }), staleTime: 30_000, enabled: user?.role === 'adm_principal' && ['server_1', 'server_2'].includes(activityServer) && Boolean(result?.name) && /^\d{10,25}$/.test(activitySteamId) });
   const inventory = useMemo(() => (result?.inventory || []).filter((item) => !search || `${item.name} ${item.prefab} ${item.crafterName}`.toLowerCase().includes(search.toLowerCase())), [result, search]);
   const characters = useMemo(() => (characterQuery.data?.characters || []).filter((item) => `${item.characterName} ${item.steamId} ${item.backupAt || ''}`.toLowerCase().includes(characterSearch.toLowerCase())), [characterQuery.data, characterSearch]);
   if (user?.role !== 'adm_principal') return <AccessDenied />;
 
   const analyze = async (selected) => {
-    setError(''); setResult(null); setFile(selected || null); setActivitySteamId(selected?.name?.match(/^Steam_(\d+)_/i)?.[1] || '');
+    setError(''); setResult(null); setFile(selected || null); setActivitySteamId(selected?.name?.match(/^Steam_(\d+)_/i)?.[1] || ''); setActivityServer('');
     if (!selected) return;
     if (!selected.name.toLowerCase().endsWith('.fch')) { setError('Selecione um arquivo com extensão .fch.'); return; }
     setLoading(true);
     try { setResult(parseFch(await selected.arrayBuffer())); } catch (caught) { setError(caught.message || 'Não foi possível interpretar o personagem.'); } finally { setLoading(false); }
   };
   const analyzeRemote = async (character) => {
-    setError(''); setResult(null); setLoading(true); setFile({ name: character.name }); setCharacterOpen(false); setCharacterSearch(''); setActivitySteamId(character.steamId || '');
+    setError(''); setResult(null); setLoading(true); setFile({ name: character.name }); setCharacterOpen(false); setCharacterSearch(''); setActivitySteamId(character.steamId || ''); setActivityServer(character.server || '');
     try { const remote = await characterApi({ action: 'read', server: character.server, path: character.path }); setResult(parseFch(base64ToBuffer(remote.contentBase64))); } catch (caught) { setError(caught.message || 'Não foi possível obter o personagem.'); } finally { setLoading(false); }
   };
 
