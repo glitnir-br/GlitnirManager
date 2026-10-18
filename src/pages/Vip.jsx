@@ -60,7 +60,7 @@ function DeliveryHistory({ deliveries, statusFilter, setStatusFilter, onSend, se
 
 export default function Vip() {
   const queryClient = useQueryClient(); const { hasPage } = usePermissions();
-  const canManage = hasPage('vip_manage_packages'); const canDeliver = hasPage('vip_deliveries'); const canViewFinance = hasPage('vip_finance');
+  const canManage = hasPage('vip_manage_packages'); const canDeliver = hasPage('vip_deliveries'); const canViewFinance = false;
   const [packageDialog, setPackageDialog] = useState(false); const [packageForm, setPackageForm] = useState(emptyPackage);
   const [deliveryDialog, setDeliveryDialog] = useState(false); const [delivery, setDelivery] = useState(emptyDelivery); const [playerSearch, setPlayerSearch] = useState('');
   const [message, setMessage] = useState(''); const [statusFilter, setStatusFilter] = useState('todos');

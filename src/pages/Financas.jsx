@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { base44 } from '@/api/dbClient';
+import { base44, supabase } from '@/api/dbClient';
 import FinanceGuardRole from '@/components/FinanceGuardRole';
 import FinancialPasswordProtection from '@/components/FinancialPasswordProtection';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,17 @@ const playerCharacters = (player) => {
 };
 
 const playerName = (player) => playerCharacters(player).join(', ') || 'Sem personagem';
+
+const deleteVipFinancial = async (deliveryId) => {
+  const { data } = await supabase.auth.getSession();
+  const response = await fetch('/api/vip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` },
+    body: JSON.stringify({ action: 'delete-financial', id: deliveryId }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Falha ao excluir o lançamento VIP.');
+};
 
 export default function Financas({ embedded = false }) {
   const queryClient = useQueryClient();
@@ -187,7 +198,7 @@ export default function Financas({ embedded = false }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Financa.delete(id),
+    mutationFn: (finance) => finance.vip_delivery_id ? deleteVipFinancial(finance.vip_delivery_id) : base44.entities.Financa.delete(finance.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas'] }),
   });
 
@@ -250,6 +261,8 @@ export default function Financas({ embedded = false }) {
   };
 
   const total = financas.reduce((sum, finance) => sum + Number(finance.valor || 0), 0);
+  const vipFinancas = financas.filter((finance) => finance.vip_delivery_id || finance.categoria === 'VIP' || finance.tipo === 'VIP');
+  const vipTotal = vipFinancas.reduce((sum, finance) => sum + Number(finance.valor || 0), 0);
   const filtered = financas.filter((finance) => {
     const date = parseISO(finance.data || finance.created_date || new Date().toISOString());
     const identity = `${finance.personagem || finance.nick || ''} ${finance.steamid || ''}`.toLowerCase();
@@ -304,6 +317,22 @@ export default function Financas({ embedded = false }) {
             <Button onClick={() => setDialogOpen(true)} className="bg-primary hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" /> Nova doação
             </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-secondary/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receita total</p>
+              <p className="mt-2 font-mono text-2xl font-bold text-green-400">R$ {formatMoney(total)}</p>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">Recebido por VIP</p>
+              <p className="mt-2 font-mono text-2xl font-bold text-amber-300">R$ {formatMoney(vipTotal)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-secondary/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vendas VIP</p>
+              <p className="mt-2 text-2xl font-bold">{vipFinancas.length}</p>
+              <p className="text-xs text-muted-foreground">Ticket médio R$ {formatMoney(vipFinancas.length ? vipTotal / vipFinancas.length : 0)}</p>
+            </div>
           </div>
 
           <div className="max-w-xs rounded-xl border border-border bg-secondary/40 p-4">
@@ -427,7 +456,7 @@ export default function Financas({ embedded = false }) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(finance)}>
                           <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(finance.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(finance)}>
                           <Trash2 className="h-4 w-4 text-red-400" />
                         </Button>
                       </div>
