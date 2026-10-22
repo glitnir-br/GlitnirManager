@@ -23,7 +23,7 @@ export function shouldShowPrefab(name, prefab) {
 }
 
 export function isPlayerInventoryItem(item) {
-  if (item?.source === 'wackysDatabase') return true;
+  if (item?.source === 'wackysDatabase' || item?.source === 'verifiedMod') return true;
   const prefab = clean(item?.prefab);
   const english = clean(item?.english);
   return Boolean(

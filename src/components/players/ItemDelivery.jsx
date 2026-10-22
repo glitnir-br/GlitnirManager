@@ -4,6 +4,7 @@ import { Clock3, PackageSearch, Search } from 'lucide-react';
 import { supabase } from '@/api/dbClient';
 import vanillaCatalog from '@/data/valheim-item-catalog.json';
 import customCatalog from '@/data/verified-custom-item-catalog.json';
+import modCatalog from '@/data/verified-mod-item-catalog.json';
 import { isPlayerInventoryItem, itemDisplayName, shouldShowPrefab } from '@/lib/itemNames';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const CATALOG = [...new Map([...Object.values(vanillaCatalog), ...Object.values(customCatalog)].filter(isPlayerInventoryItem).map((item) => [item.prefab, item])).values()].sort((a, b) => itemDisplayName(a).localeCompare(itemDisplayName(b), 'pt-BR'));
+const CATALOG = [...new Map([...Object.values(vanillaCatalog), ...Object.values(customCatalog), ...Object.values(modCatalog)].filter(isPlayerInventoryItem).map((item) => [item.prefab, item])).values()].sort((a, b) => itemDisplayName(a).localeCompare(itemDisplayName(b), 'pt-BR'));
 const STATUS = { em_processamento: 'Em processamento', entregue: 'Entregue', falhou: 'Falhou', resultado_incerto: 'Resultado incerto' };
 const playerName = (player) => player?.personagens?.filter(Boolean)?.join(', ') || player?.nick || 'Sem nome';
 
