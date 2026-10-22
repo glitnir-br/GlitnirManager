@@ -80,6 +80,33 @@ export default async function handler(req, res) { if (req.method !== 'POST') ret
     if (action === 'territory-delete') { await Promise.all(targets(server).map((target) => ptero(`/api/client/servers/${id(target)}/files/delete`, { method: 'POST', body: JSON.stringify({ root: territoryRoot, files: [file] }), contentType: 'application/json' }))); return send(res, 200, { success: true }); }
     return send(res, 400, { error: 'Ação inválida.' });
   }
+  if (action.startsWith('ward-')) {
+    const server = req.body?.server;
+    if (!['server_1', 'server_2'].includes(server)) return send(res, 400, { error: 'Selecione Server 1 ou Server 2.' });
+    const wardRoot = '/BepInEx/config/ArcaneWard';
+    const vipPath = `${wardRoot}/VIPplayers.txt`;
+    const dataPath = `${wardRoot}/WardData.json`;
+    if (action === 'ward-list') {
+      let vipContent = '';
+      let wardContent = '{}';
+      try { vipContent = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(vipPath)}`, { text: true }); } catch { vipContent = ''; }
+      try { wardContent = await ptero(`/api/client/servers/${id(server)}/files/contents?file=${encodeURIComponent(dataPath)}`, { text: true }); } catch { wardContent = '{}'; }
+      const vipPlayers = [...new Set(vipContent.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith('//') && !line.startsWith('#')))];
+      let wardData = {};
+      try { const parsed = JSON.parse(wardContent); if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') wardData = parsed; } catch { return send(res, 422, { error: 'WardData.json possui JSON inválido.' }); }
+      const wards = Object.entries(wardData).map(([steamId, count]) => ({ steamId, wards: Number(count) || 0 })).sort((a, b) => a.steamId.localeCompare(b.steamId));
+      return send(res, 200, { vipPlayers: vipPlayers.sort(), wards, vipCount: vipPlayers.length, wardDataCount: wards.length });
+    }
+    if (action === 'ward-save-vip') {
+      const players = req.body?.players;
+      if (!Array.isArray(players) || players.length > 10000) return send(res, 400, { error: 'Lista de jogadores inválida.' });
+      const normalized = [...new Set(players.map((value) => String(value).trim()).filter(Boolean))];
+      if (normalized.some((value) => !/^\d{17}$/.test(value))) return send(res, 400, { error: 'Todos os Steam IDs devem possuir 17 dígitos.' });
+      await ptero(`/api/client/servers/${id(server)}/files/write?file=${encodeURIComponent(vipPath)}`, { method: 'POST', body: `//\n${normalized.join('\n')}${normalized.length ? '\n' : ''}`, contentType: 'text/plain', text: true });
+      return send(res, 200, { success: true });
+    }
+    return send(res, 400, { error: 'Ação de wards inválida.' });
+  }
   if (action === 'sync-all') { await Promise.all(Object.keys(ROOTS).map((item) => sync(admin, item))); await syncMods(admin); return send(res, 200, { success: true }); } if (action === 'list' && category === 'mods') { const { data: rows, error } = await admin.from('server_mod_manifests').select('*').order('folder_name'); if (error) throw error; const grouped = new Map(); for (const row of rows || []) { const mod = grouped.get(row.package_key) || { packageKey: row.package_key, folderName: row.folder_name, names: new Set(), authors: new Set(), versions: new Map(), servers: new Set(), locations: new Set(), invalidManifest: false }; const versionKey = `${row.name}\0${row.version}`; const version = mod.versions.get(versionKey) || { name: row.name, version: row.version, servers: new Set(), locations: new Set() }; version.servers.add(row.server); version.locations.add(row.category); mod.names.add(row.name); mod.authors.add(row.creator || 'Não informado'); mod.versions.set(versionKey, version); mod.servers.add(row.server); mod.locations.add(row.category); mod.invalidManifest ||= row.manifest_valid === false; grouped.set(row.package_key, mod); } const mods = [...grouped.values()].map((mod) => ({ packageKey: mod.packageKey, folderName: mod.folderName, name: [...mod.names][0] || mod.folderName, names: [...mod.names], authors: [...mod.authors], versions: [...mod.versions.values()].map((version) => ({ name: version.name, version: version.version, servers: [...version.servers], locations: [...version.locations] })), servers: [...mod.servers], locations: [...mod.locations], divergent: mod.versions.size > 1 || mod.invalidManifest, invalidManifest: mod.invalidManifest })); const { data: syncInfo } = await admin.from('server_file_syncs').select('synced_at').order('synced_at', { ascending: false }).limit(1).maybeSingle(); return send(res, 200, { files: mods, syncedAt: syncInfo?.synced_at || null }); } if (!ROOTS[category]) return send(res, 400, { error: 'Categoria inválida.' }); if (action === 'sync') { await sync(admin, category); }
   if (action === 'list' || action === 'sync') { const path = String(req.body?.path || ''); if (!safe(path)) return send(res, 400, { error: 'Caminho inválido.' }); const parent = path ? `${path}/` : ''; const { data: rows, error } = await admin.from('server_files').select('*').eq('category', category).order('is_directory', { ascending: false }).order('path'); if (error) throw error; const files = (rows || []).filter((row) => row.path.startsWith(parent) && !row.path.slice(parent.length).includes('/')); const { data: syncInfo } = await admin.from('server_file_syncs').select('synced_at').eq('category', category).maybeSingle(); return send(res, 200, { files, syncedAt: syncInfo?.synced_at || null }); }
   const server = req.body?.server; if (!['server_1', 'server_2', 'todos'].includes(server)) return send(res, 400, { error: 'Servidor inválido.' });

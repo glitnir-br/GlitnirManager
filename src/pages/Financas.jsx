@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { base44, supabase } from '@/api/dbClient';
+import { base44 } from '@/api/dbClient';
 import FinanceGuardRole from '@/components/FinanceGuardRole';
 import FinancialPasswordProtection from '@/components/FinancialPasswordProtection';
 import { Button } from '@/components/ui/button';
@@ -78,17 +78,6 @@ const playerCharacters = (player) => {
 };
 
 const playerName = (player) => playerCharacters(player).join(', ') || 'Sem personagem';
-
-const deleteVipFinancial = async (deliveryId) => {
-  const { data } = await supabase.auth.getSession();
-  const response = await fetch('/api/vip', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` },
-    body: JSON.stringify({ action: 'delete-financial', id: deliveryId }),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || 'Falha ao excluir o lançamento VIP.');
-};
 
 export default function Financas({ embedded = false }) {
   const queryClient = useQueryClient();
@@ -198,7 +187,7 @@ export default function Financas({ embedded = false }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (finance) => finance.vip_delivery_id ? deleteVipFinancial(finance.vip_delivery_id) : base44.entities.Financa.delete(finance.id),
+    mutationFn: (finance) => base44.entities.Financa.delete(finance.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financas'] }),
   });
 
@@ -456,9 +445,9 @@ export default function Financas({ embedded = false }) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(finance)}>
                           <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(finance)}>
+                        {!finance.vip_delivery_id && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(finance)}>
                           <Trash2 className="h-4 w-4 text-red-400" />
-                        </Button>
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>
