@@ -28,7 +28,7 @@ export default function WardsTab() {
   const [vipSearch, setVipSearch] = useState('');
   const [wardSearch, setWardSearch] = useState('');
   const [vipSort, setVipSort] = useState('name_asc');
-  const [wardSort, setWardSort] = useState('wards_desc');
+  const [wardSort, setWardSort] = useState('name_asc');
   const [message, setMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const query = useQuery({ queryKey: ['wards', server], queryFn: () => wardApi({ action: 'ward-list', server }) });
