@@ -1,0 +1,80 @@
+{
+  "EnxadaEterna": {
+    "prefab": "EnxadaEterna",
+    "english": "Enxada Eterna",
+    "itemType": 19,
+    "maxStackSize": 1,
+    "maxQuality": 3,
+    "maxDurability": 200,
+    "durabilityPerLevel": 200,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.1,
+    "source": "wackysDatabase"
+  },
+  "FoiceEterna": {
+    "prefab": "FoiceEterna",
+    "english": "Foice Eterna",
+    "itemType": 14,
+    "maxStackSize": 1,
+    "maxQuality": 3,
+    "maxDurability": 200,
+    "durabilityPerLevel": 200,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.1,
+    "source": "wackysDatabase"
+  },
+  "MarteloEterno": {
+    "prefab": "MarteloEterno",
+    "english": "Martelo Eterno",
+    "itemType": 19,
+    "maxStackSize": 1,
+    "maxQuality": 3,
+    "maxDurability": 100,
+    "durabilityPerLevel": 100,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.1,
+    "source": "wackysDatabase"
+  },
+  "Vip1": {
+    "prefab": "Vip1",
+    "english": "Moeda Vip Midgard",
+    "itemType": 1,
+    "maxStackSize": 10,
+    "maxQuality": 1,
+    "maxDurability": 100,
+    "durabilityPerLevel": 50,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.01,
+    "source": "wackysDatabase"
+  },
+  "Vip2": {
+    "prefab": "Vip2",
+    "english": "Moeda Vip Asgard",
+    "itemType": 1,
+    "maxStackSize": 10,
+    "maxQuality": 1,
+    "maxDurability": 100,
+    "durabilityPerLevel": 50,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.01,
+    "source": "wackysDatabase"
+  },
+  "Vip3": {
+    "prefab": "Vip3",
+    "english": "Moeda Vip Valhalla",
+    "itemType": 1,
+    "maxStackSize": 10,
+    "maxQuality": 1,
+    "maxDurability": 100,
+    "durabilityPerLevel": 50,
+    "useDurability": false,
+    "teleportable": true,
+    "weight": 0.01,
+    "source": "wackysDatabase"
+  }
+}

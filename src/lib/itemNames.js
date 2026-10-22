@@ -21,3 +21,16 @@ export function itemDisplayName(item) {
 export function shouldShowPrefab(name, prefab) {
   return Boolean(clean(prefab) && clean(name).toLowerCase() !== clean(prefab).toLowerCase());
 }
+
+export function isPlayerInventoryItem(item) {
+  if (item?.source === 'wackysDatabase') return true;
+  const prefab = clean(item?.prefab);
+  const english = clean(item?.english);
+  return Boolean(
+    prefab
+    && english
+    && item?.itemType !== 10
+    && !/^(FW_|SP_|DvergerArbalest(?:_|$))/i.test(prefab)
+    && !/unused/i.test(english)
+  );
+}
