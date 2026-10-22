@@ -20,7 +20,6 @@ import Dashboard from '@/pages/Dashboard';
 import Servidores from '@/pages/Servidores';
 import Jogadores from '@/pages/Jogadores';
 import Financeiro from '@/pages/Financeiro';
-import Mods from '@/pages/Mods';
 import Administracao from '@/pages/Administracao';
 import Personagem from '@/pages/Personagem';
 import Rcon from '@/pages/Rcon';
@@ -85,8 +84,6 @@ const AuthenticatedApp = () => {
         <Route path="/financeiro" element={<PagePermissionGuard page="financeiro"><Financeiro /></PagePermissionGuard>} />
         <Route path="/financas" element={<Navigate to="/financeiro" replace />} />
         <Route path="/banidos" element={<Navigate to="/jogadores?tab=banidos" replace />} />
-        <Route path="/atelier" element={<Navigate to="/mods?tab=atelier" replace />} />
-        <Route path="/mods" element={<PagePermissionGuard page="mods"><Mods /></PagePermissionGuard>} />
         <Route path="/despesas" element={<Navigate to="/financeiro?tab=despesas" replace />} />
         <Route path="/administracao" element={<PagePermissionGuard page="administracao"><Administracao /></PagePermissionGuard>} />
         <Route path="/personagem" element={<PagePermissionGuard page="personagem"><Personagem /></PagePermissionGuard>} />

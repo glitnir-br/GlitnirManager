@@ -14,7 +14,6 @@ export const PAGE_PERMISSIONS = [
   { key: 'vip', label: 'VIP' },
   { key: 'territorios', label: 'Territórios' },
   { key: 'personagem', label: 'Personagem' },
-  { key: 'mods', label: 'Mods' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'administracao', label: 'Administração' },
   { key: 'vip_manage_packages', label: 'VIP · Gerenciar pacotes' },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Crown, LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink, FolderCog, Server, Terminal, MapPinned } from 'lucide-react';
+import { Crown, LayoutDashboard, Users, DollarSign, X, Shield, UserCircle, ExternalLink, Server, Terminal, MapPinned } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -14,7 +14,6 @@ const allNavItems = [
   { label: 'VIP',             path: '/vip',              icon: Crown,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Territórios',     path: '/territorios',      icon: MapPinned,       roles: ['adm_principal', 'administrador'] },
   { label: 'Personagem',      path: '/personagem',       icon: UserCircle,      roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
-  { label: 'Mods',            path: '/mods',             icon: FolderCog,       roles: ['adm_principal', 'administrador', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Administração',   path: '/administracao',    icon: Shield,          roles: ['adm_principal', 'administrador'] },
 ];
