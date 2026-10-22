@@ -25,6 +25,7 @@ import Administracao from '@/pages/Administracao';
 import Personagem from '@/pages/Personagem';
 import Rcon from '@/pages/Rcon';
 import Vip from '@/pages/Vip';
+import Territorios from '@/pages/Territorios';
 import UserProfile from '@/pages/UserProfile';
 import DeleteConfirmationProvider from '@/components/DeleteConfirmationProvider';
 import PagePermissionGuard from '@/components/PagePermissionGuard';
@@ -79,6 +80,7 @@ const AuthenticatedApp = () => {
         <Route path="/rcon" element={<PagePermissionGuard page="rcon"><Rcon /></PagePermissionGuard>} />
         <Route path="/jogadores" element={<PagePermissionGuard page="jogadores"><Jogadores /></PagePermissionGuard>} />
         <Route path="/vip" element={<PagePermissionGuard page="vip"><Vip /></PagePermissionGuard>} />
+        <Route path="/territorios" element={<PagePermissionGuard page="territorios"><Territorios /></PagePermissionGuard>} />
         <Route path="/players" element={<Navigate to="/jogadores" replace />} />
         <Route path="/financeiro" element={<PagePermissionGuard page="financeiro"><Financeiro /></PagePermissionGuard>} />
         <Route path="/financas" element={<Navigate to="/financeiro" replace />} />

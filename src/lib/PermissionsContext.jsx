@@ -12,6 +12,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'jogadores', label: 'Jogadores' },
   { key: 'player_item_deliveries', label: 'Jogadores · Enviar itens e consultar histórico' },
   { key: 'vip', label: 'VIP' },
+  { key: 'territorios', label: 'Territórios' },
   { key: 'personagem', label: 'Personagem' },
   { key: 'mods', label: 'Mods' },
   { key: 'financeiro', label: 'Financeiro' },
