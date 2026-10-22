@@ -5,8 +5,9 @@ const DEFAULT_RCON_ROLES = new Set(['adm_principal', 'administrador']);
 const MAX_COMMAND_LENGTH = 1000;
 
 function send(res, status, body) { res.status(status).json(body); }
-function validServer(server) { return server === 'server_1' || server === 'server_2'; }
+function validServer(server) { return server === 'server_1' || server === 'server_2' || server === 'server_test'; }
 function configFor(server) {
+  if (server === 'server_test') return { host: process.env.RCON_TEST_HOST, port: Number(process.env.RCON_TEST_PORT), password: process.env.RCON_TEST_PASSWORD };
   const suffix = server === 'server_1' ? '1' : '2';
   return { host: process.env[`RCON_SERVER_${suffix}_HOST`], port: Number(process.env[`RCON_SERVER_${suffix}_PORT`]), password: process.env[`RCON_SERVER_${suffix}_PASSWORD`] };
 }
@@ -37,13 +38,15 @@ async function authenticate(req) {
   if (!profile || !['ativo', 'aprovado'].includes(profile.status)) throw Object.assign(new Error('Usuário sem acesso ativo.'), { status: 403 });
   const { data: permissions, error: permissionError } = await admin.from('role_permissions').select('page_key,allowed').eq('role_key', profile.role);
   if (permissionError) throw permissionError;
-  const allowed = profile.role === 'adm_principal' || (permissions?.length ? permissions.some((item) => item.page_key === 'rcon' && item.allowed) : DEFAULT_RCON_ROLES.has(profile.role));
+  const requestedPermission = req.body?.server === 'server_test' ? 'rcon_testes' : 'rcon';
+  const allowed = profile.role === 'adm_principal' || (permissions?.length ? permissions.some((item) => item.page_key === requestedPermission && item.allowed) : DEFAULT_RCON_ROLES.has(profile.role));
   if (!allowed) throw Object.assign(new Error('Seu cargo não possui permissão para usar Rcon.'), { status: 403 });
   return { email: data.user.email };
 }
 export function executeRcon(server, command) {
   const config = configFor(server);
-  if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || !config.password) throw Object.assign(new Error(`RCON do ${server === 'server_1' ? 'Server 1' : 'Server 2'} não está configurado.`), { status: 503 });
+  const serverLabel = server === 'server_1' ? 'Server 1' : server === 'server_2' ? 'Server 2' : 'Servidor de Testes';
+  if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || !config.password) throw Object.assign(new Error(`RCON do ${serverLabel} não está configurado.`), { status: 503 });
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: config.host, port: config.port }); let buffer = Buffer.alloc(0); let authenticated = false; let output = ''; let idleTimer; let settled = false;
     const finish = (error) => { if (settled) return; settled = true; clearTimeout(idleTimer); socket.destroy(); error ? reject(error) : resolve(output.trim() || 'Comando executado sem resposta.'); };

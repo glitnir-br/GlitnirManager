@@ -9,6 +9,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'servidores', label: 'Servidores' },
   { key: 'rcon', label: 'Rcon' },
+  { key: 'rcon_testes', label: 'Rcon de Testes' },
   { key: 'jogadores', label: 'Jogadores' },
   { key: 'player_item_deliveries', label: 'Jogadores · Enviar itens e consultar histórico' },
   { key: 'territorios', label: 'Territórios e Wards' },

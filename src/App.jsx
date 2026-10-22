@@ -76,6 +76,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<PagePermissionGuard page="dashboard"><Dashboard /></PagePermissionGuard>} />
         <Route path="/servidores" element={<PagePermissionGuard page="servidores"><Servidores /></PagePermissionGuard>} />
         <Route path="/rcon" element={<PagePermissionGuard page="rcon"><Rcon /></PagePermissionGuard>} />
+        <Route path="/rcon-testes" element={<PagePermissionGuard page="rcon_testes"><Rcon testMode /></PagePermissionGuard>} />
         <Route path="/jogadores" element={<PagePermissionGuard page="jogadores"><Jogadores /></PagePermissionGuard>} />
         <Route path="/territorios" element={<PagePermissionGuard page="territorios"><Territorios /></PagePermissionGuard>} />
         <Route path="/players" element={<Navigate to="/jogadores" replace />} />
