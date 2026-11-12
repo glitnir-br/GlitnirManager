@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     if (!email || !profile || !['adm_principal', 'administrador'].includes(profile.role) || !['ativo', 'aprovado'].includes(profile.status)) return send(res, 403, { error: 'Sem permissão para criar acessos.' });
     const newEmail = String(req.body?.email || '').trim().toLowerCase();
     const role = String(req.body?.role || 'visitante');
+    if (role === 'adm_principal') return send(res, 403, { error: 'Não é permitido criar outro ADM Principal por este fluxo.' });
     let isValidRole = ROLES.has(role);
     if (!isValidRole) {
       const { data: customRole, error: roleError } = await admin.from('roles').select('key').eq('key', role).maybeSingle();

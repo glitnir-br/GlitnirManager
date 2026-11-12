@@ -5,7 +5,6 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { AdminAuthProvider } from '@/lib/AdminAuthContext';
-import { FinancialPasswordProvider } from '@/lib/FinancialPasswordContext';
 import { ServerProvider } from '@/lib/ServerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginScreen from '@/components/LoginScreen';
@@ -105,14 +104,12 @@ function App() {
     <AuthProvider>
         <ServerProvider>
         <AdminAuthProvider>
-          <FinancialPasswordProvider>
             <QueryClientProvider client={queryClientInstance}>
               <PermissionsProvider><Router>
                 <AuthenticatedApp />
               </Router></PermissionsProvider>
               <Toaster />
             </QueryClientProvider>
-          </FinancialPasswordProvider>
         </AdminAuthProvider>
         </ServerProvider>
     </AuthProvider>

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44, isSupabaseConfigured } from '@/api/dbClient';
 import { useAuth } from '@/lib/AuthContext';
+import { resolveAllowedPages } from '@/lib/permissionRules';
 
 const PermissionsContext = createContext();
 
@@ -27,17 +28,15 @@ const LEGACY_PERMISSIONS = {
 
 export function PermissionsProvider({ children }) {
   const { user } = useAuth();
-  const { data: permissions = [], isLoading } = useQuery({
+  const { data: permissions = [], isLoading, isError } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: () => base44.entities.RolePermission.list(),
     enabled: Boolean(user && isSupabaseConfigured()),
     staleTime: 30_000,
   });
   const allowedPages = useMemo(() => {
-    if (user?.role === 'adm_principal') return LEGACY_PERMISSIONS.adm_principal;
-    const saved = permissions.filter((item) => item.role_key === user?.role && item.allowed).map((item) => item.page_key);
-    return saved.length ? saved : (LEGACY_PERMISSIONS[user?.role] || []);
-  }, [permissions, user?.role]);
+    return resolveAllowedPages(user?.role, permissions, LEGACY_PERMISSIONS, isLoading || isError);
+  }, [permissions, user?.role, isLoading, isError]);
   const hasPage = (page) => allowedPages.includes(page);
   return <PermissionsContext.Provider value={{ hasPage, allowedPages, isLoadingPermissions: isLoading }}>{children}</PermissionsContext.Provider>;
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Download, Loader2, Trash2 } from 'lucide-react';
 
 import { supabase } from '@/api/dbClient';
@@ -21,6 +22,7 @@ const CATEGORIES = [
 const SERVER_LABELS = { server_1: 'Server 1', server_2: 'Server 2', todos: 'Todos os servidores' };
 
 export default function DataResetPanel() {
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState({});
   const [target, setTarget] = useState('todos');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -73,6 +75,7 @@ export default function DataResetPanel() {
       const records = Object.fromEntries(backup.data.map((item) => [item.table, item.records.map((record) => record.id)]));
       const { data, error: resetError } = await supabase.rpc('reset_system_data', { p_target: backup.target, p_records: records });
       if (resetError) throw resetError;
+      await queryClient.invalidateQueries();
       setResult(`${data.total} registros apagados em ${SERVER_LABELS[target]}.`);
       setBackup(null);
       setSelected({});

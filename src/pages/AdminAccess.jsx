@@ -33,7 +33,12 @@ const showTemporaryPasswordDialog = ({ email, temporaryPassword }) => {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem;';
   const dialog = document.createElement('div');
   dialog.style.cssText = 'width:min(28rem,100%);border:1px solid #4b5563;border-radius:.75rem;background:#18181b;color:#fafafa;padding:1.5rem;font-family:system-ui;';
-  dialog.innerHTML = `<h2 style="margin:0 0 .75rem;font-size:1.25rem">Senha temporária criada</h2><p style="margin:0 0 1rem;color:#a1a1aa;font-size:.9rem">Entregue esta senha para <strong style="color:#fff">${email}</strong>. Ela será alterada no primeiro login.</p><code style="display:block;overflow-wrap:anywhere;border:1px solid #7c3aed;border-radius:.5rem;background:#27272a;padding:.75rem;color:#c4b5fd;font-size:1rem;font-weight:700">${temporaryPassword}</code>`;
+  const title = document.createElement('h2'); title.textContent = 'Senha temporária criada'; title.style.cssText = 'margin:0 0 .75rem;font-size:1.25rem';
+  const description = document.createElement('p'); description.style.cssText = 'margin:0 0 1rem;color:#a1a1aa;font-size:.9rem';
+  const recipient = document.createElement('strong'); recipient.style.color = '#fff'; recipient.textContent = email;
+  description.append('Entregue esta senha para ', recipient, '. Ela será alterada no primeiro login.');
+  const password = document.createElement('code'); password.textContent = temporaryPassword; password.style.cssText = 'display:block;overflow-wrap:anywhere;border:1px solid #7c3aed;border-radius:.5rem;background:#27272a;padding:.75rem;color:#c4b5fd;font-size:1rem;font-weight:700';
+  dialog.append(title, description, password);
   const actions = document.createElement('div');
   actions.style.cssText = 'display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem;';
   const copy = document.createElement('button'); copy.textContent = 'Copiar senha';

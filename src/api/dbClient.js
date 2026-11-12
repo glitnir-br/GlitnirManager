@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { requestDeleteConfirmation } from '@/lib/delete-confirmation';
+import { paginatedRead } from '@/api/paginatedRead';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
@@ -109,16 +110,7 @@ const createEntityManager = (entityName) => {
   return {
     list: async (sortKey, limit) => {
       if (supabase) {
-        let query = supabase.from(tableName).select('*');
-        if (sortKey) {
-          const isDesc = sortKey.startsWith('-');
-          const field = isDesc ? sortKey.substring(1) : sortKey;
-          query = query.order(field, { ascending: !isDesc });
-        }
-        if (limit) query = query.limit(limit);
-        const { data, error } = await query;
-        if (error) throw new Error(`Falha ao listar ${tableName}: ${error.message}`);
-        return data || [];
+        return paginatedRead(supabase, tableName, { sortKey, limit });
       }
       
       let items = getLocalStorage(entityName);
@@ -131,19 +123,7 @@ const createEntityManager = (entityName) => {
 
     filter: async (criteria = {}, sortKey, limit) => {
       if (supabase) {
-        let query = supabase.from(tableName).select('*');
-        Object.entries(criteria).forEach(([k, v]) => {
-          query = query.eq(k, v);
-        });
-        if (sortKey) {
-          const isDesc = sortKey.startsWith('-');
-          const field = isDesc ? sortKey.substring(1) : sortKey;
-          query = query.order(field, { ascending: !isDesc });
-        }
-        if (limit) query = query.limit(limit);
-        const { data, error } = await query;
-        if (error) throw new Error(`Falha ao filtrar ${tableName}: ${error.message}`);
-        return data || [];
+        return paginatedRead(supabase, tableName, { criteria, sortKey, limit });
       }
 
       let items = getLocalStorage(entityName)
@@ -210,8 +190,9 @@ const createEntityManager = (entityName) => {
       }
 
       if (supabase) {
-        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        const { data: deleted, error } = await supabase.from(tableName).delete().eq('id', id).select('id');
         if (error) throw new Error(`Falha ao excluir de ${tableName}: ${error.message}`);
+        if (!deleted?.length) throw new Error('Registro não encontrado ou sem permissão para excluí-lo.');
         await writeAuditLog('delete', entityName, { id });
         return true;
       }
