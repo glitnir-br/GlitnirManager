@@ -20,7 +20,7 @@ const DEFAULTS = {
   adm_principal: PAGE_PERMISSIONS.map(({ key }) => key),
   administrador: PAGE_PERMISSIONS.map(({ key }) => key),
   financeiro: ['dashboard', 'jogadores', 'financeiro'],
-  visitante: ['dashboard', 'jogadores', 'mods'],
+  visitante: ['dashboard', 'jogadores'],
 };
 const keyFromName = (name) => name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 

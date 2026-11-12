@@ -13,7 +13,7 @@ const migrations = [
   '20261014_000020_mod_folder_identity.sql', '20261015_000004_roles_and_permissions.sql',
   '20261018_000021_vip_packages_and_deliveries.sql', '20261018_000024_player_item_deliveries.sql',
   '20261112_000028_safe_data_reset.sql', '20261112_000029_security_hardening.sql',
-  '20261112_000030_safe_sync_deliveries.sql',
+  '20261112_000030_safe_sync_deliveries.sql', '20261112_000031_mod_comparison.sql',
 ];
 
 async function database() {
@@ -25,6 +25,7 @@ async function database() {
     grant usage on schema auth to authenticated, anon, service_role;
     grant execute on all functions in schema auth to authenticated, anon, service_role;`);
   for (const file of migrations) {
+    if (file === '20261112_000031_mod_comparison.sql') await db.exec("insert into public.role_permissions(role_key,page_key,allowed) values ('administrador','dashboard',true)");
     const sql = (await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8')).replace('create extension if not exists pgcrypto;', '');
     try { await db.exec(sql); } catch (error) { throw new Error(`${file}: ${error.message}`, { cause: error }); }
   }
@@ -43,6 +44,7 @@ async function login(db, email) {
 
 test('perfis principais e usuários bloqueados são protegidos; acesso financeiro respeita permissões', async (t) => {
   const db = await database(); t.after(() => db.close());
+  assert.equal((await db.query("select allowed from public.role_permissions where role_key='administrador' and page_key='mods'")).rows[0].allowed, true);
   await login(db, 'admin@example.test');
   await assert.rejects(db.exec("update public.user_profiles set role='adm_principal' where email='admin@example.test'"));
   await assert.rejects(db.exec("insert into public.user_profiles(email,role,status) values ('new@example.test','adm_principal','ativo')"));
@@ -97,4 +99,19 @@ test('somente um envio não conferido por jogador e prefab é permitido', async 
   await db.exec("update public.player_item_deliveries set status='verificada_nao_entregue'");
   await db.query(insert, ['em_processamento']);
   assert.equal((await db.query('select count(*)::int as n from public.player_item_deliveries')).rows[0].n, 2);
+});
+
+test('sincronização de mods impede concorrência e só publica resultado completo', async (t) => {
+  const db = await database(); t.after(() => db.close());
+  const first = (await db.query("select public.mod_comparison_acquire('admin') as token")).rows[0].token;
+  assert.ok(first);
+  assert.equal((await db.query("select public.mod_comparison_acquire('outro') as token")).rows[0].token, null);
+  assert.equal((await db.query('select public.mod_comparison_touch($1,$2) as ok', [first, 'outro'])).rows[0].ok, false);
+  await assert.rejects(db.query('select public.mod_comparison_finish($1,$2,$3)', [first, 'outro', '[]']));
+  assert.equal((await db.query('select count(*)::int as n from public.mod_comparison_snapshot')).rows[0].n, 0);
+  await db.query('select public.mod_comparison_finish($1,$2,$3)', [first, 'admin', JSON.stringify([{ folder: 'Teste' }])]);
+  assert.equal((await db.query('select synced_by from public.mod_comparison_snapshot')).rows[0].synced_by, 'admin');
+  assert.ok((await db.query("select public.mod_comparison_acquire('outro') as token")).rows[0].token);
+  await login(db, 'admin@example.test');
+  await assert.rejects(db.query("select public.mod_comparison_acquire('admin')"), { code: '42501' });
 });

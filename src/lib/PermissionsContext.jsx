@@ -14,6 +14,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'jogadores', label: 'Jogadores' },
   { key: 'player_item_deliveries', label: 'Jogadores · Enviar itens e consultar histórico' },
   { key: 'territorios', label: 'Territórios' },
+  { key: 'mods', label: 'Comparador de mods' },
   { key: 'personagem', label: 'Personagem' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'administracao', label: 'Administração' },
@@ -23,7 +24,7 @@ const LEGACY_PERMISSIONS = {
   adm_principal: PAGE_PERMISSIONS.map(({ key }) => key),
   administrador: PAGE_PERMISSIONS.map(({ key }) => key),
   financeiro: ['dashboard', 'jogadores', 'financeiro'],
-  visitante: ['dashboard', 'jogadores', 'mods'],
+  visitante: ['dashboard', 'jogadores'],
 };
 
 export function PermissionsProvider({ children }) {
