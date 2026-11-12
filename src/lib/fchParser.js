@@ -1,5 +1,4 @@
-import itemCatalog from '@/data/valheim-item-catalog.json';
-import modpackCatalog from '@/data/glitnir-prefab-catalog.json';
+import itemCatalog from '@/data/awakening-item-catalog.json';
 import { itemDisplayName } from '@/lib/itemNames';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
@@ -18,8 +17,7 @@ function stableHash(value) {
 }
 
 const catalogByHash = new Map(Object.values(itemCatalog).map((item) => [stableHash(item.prefab), item]));
-for (const [hash, item] of Object.entries(modpackCatalog)) catalogByHash.set(Number(hash), item);
-const catalogByPrefab = new Map([...Object.values(itemCatalog), ...Object.values(modpackCatalog)].map((item) => [item.prefab, item]));
+const catalogByPrefab = new Map(Object.values(itemCatalog).map((item) => [item.prefab, item]));
 
 export function resolveItemName(prefab) {
   const item = catalogByPrefab.get(String(prefab || ''));

@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import vanillaCatalog from '../src/data/valheim-item-catalog.json' with { type: 'json' };
-import customCatalog from '../src/data/verified-custom-item-catalog.json' with { type: 'json' };
-import modCatalog from '../src/data/verified-mod-item-catalog.json' with { type: 'json' };
-import { isPlayerInventoryItem, itemDisplayName } from '../src/lib/itemNames.js';
+import itemCatalog from '../src/data/awakening-item-catalog.json' with { type: 'json' };
+import { itemDisplayName } from '../src/lib/itemNames.js';
 import { executeRcon } from './rcon.js';
 
-const catalog = new Map([...Object.values(vanillaCatalog), ...Object.values(customCatalog), ...Object.values(modCatalog)].filter(isPlayerInventoryItem).map((item) => [item.prefab, item]));
+const catalog = new Map(Object.values(itemCatalog).filter((item) => item.sendable).map((item) => [item.prefab, item]));
 const send = (res, status, body) => res.status(status).json(body);
 const validServer = (value) => value === 'server_1' || value === 'server_2';
 
