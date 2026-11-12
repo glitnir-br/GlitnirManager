@@ -5,18 +5,62 @@ import handler from '../api/mod-comparison.js';
 import { initialModTasks, processModTask, runModSync } from '../src/lib/modSyncWorker.js';
 
 const entry = (server, category, folder, version) => ({ server, category, folder, name: folder, version, status: 'ok' });
-test('compara versões dentro de cada categoria sem confundir os servidores', () => {
+test('compara cada lista com Plugins no mesmo servidor', () => {
   const result = compareMods([
-    entry('server_1', 'plugins', 'Autor-Mod', '1.0'), entry('server_2', 'plugins', 'autor-mod', '2.0'),
-    entry('server_1', 'whitelist', 'Autor-Mod', '1.0'), entry('server_2', 'whitelist', 'Autor-Mod', '1.0'),
-    entry('server_1', 'greylist', 'Outro', '1.0'),
+    entry('server_1', 'plugins', 'Autor-Mod', '1.0'), entry('server_1', 'whitelist', 'autor-mod', '1.0'),
+    entry('server_1', 'greylist', 'Autor-Mod', '1.1'), entry('server_2', 'plugins', 'Autor-Mod', '2.0'),
+    entry('server_2', 'whitelist', 'Autor-Mod', '2.0'), entry('server_2', 'greylist', 'Autor-Mod', '2.0'),
   ]);
-  const mod = result.find((item) => item.key === 'autor-mod');
+  const mod = result[0];
   assert.equal(mod.divergent, true);
-  assert.equal(mod.cells['server_1:whitelist'].version, '1.0');
-  assert.equal(mod.cells['server_2:plugins'].version, '2.0');
-  assert.equal(result.find((item) => item.key === 'outro').divergent, true);
-  assert.equal(compareMods([entry('server_1', 'plugins', 'A', '1'), entry('server_2', 'plugins', 'A', '1')])[0].divergent, false);
+  assert.equal(mod.servers.server_1.status, 'mismatch');
+  assert.deepEqual(mod.servers.server_1.details.map(({ label, tone, entry: item }) => [label, tone, item.version]), [
+    ['Plugins', 'reference', '1.0'], ['Whitelist', 'match', '1.0'], ['Greylist', 'mismatch', '1.1'],
+  ]);
+  assert.equal(mod.servers.server_2.status, 'match');
+  assert.equal(mod.servers.server_2.issue, false);
+});
+
+test('um servidor sem o mod é neutro e versões iguais não geram aviso', () => {
+  const mod = compareMods([entry('server_1', 'plugins', 'A', '1'), entry('server_1', 'whitelist', 'A', '1')])[0];
+  assert.equal(mod.divergent, false);
+  assert.equal(mod.servers.server_1.status, 'match');
+  assert.equal(mod.servers.server_2.status, 'absent');
+});
+
+test('identifica ausências de Plugins e das listas sem esconder versões', () => {
+  const plugin = compareMods([entry('server_1', 'plugins', 'A', '1')])[0].servers.server_1;
+  assert.ok(plugin.labels.includes('Ausente na Whitelist e Greylist'));
+  assert.equal(plugin.details[0].entry.version, '1');
+  const list = compareMods([entry('server_1', 'greylist', 'A', '2')])[0].servers.server_1;
+  assert.ok(list.labels.includes('Ausente em Plugins'));
+  assert.equal(list.details[0].tone, 'extra');
+  assert.equal(list.details[0].entry.version, '2');
+});
+
+test('versões indisponíveis não são consideradas iguais ou diferentes', () => {
+  for (const status of ['missing', 'invalid', 'incomplete', 'file']) {
+    for (const category of ['plugins', 'whitelist']) {
+      const entries = [entry('server_1', 'plugins', 'A', '1'), entry('server_1', 'whitelist', 'A', '1')];
+      Object.assign(entries.find((item) => item.category === category), { status, version: '' });
+      const server = compareMods(entries)[0].servers.server_1;
+      assert.equal(server.status, 'unknown');
+      assert.equal(server.details[1].tone, 'unknown');
+      assert.ok(server.labels.includes('Versão indisponível para comparação'));
+    }
+  }
+});
+
+test('mostra divergência e versão indisponível em listas distintas', () => {
+  const mod = compareMods([
+    entry('server_1', 'plugins', 'A', '1'), entry('server_1', 'whitelist', 'A', '2'),
+    { ...entry('server_1', 'greylist', 'A', ''), status: 'missing' },
+  ])[0];
+  const server = mod.servers.server_1;
+  assert.equal(server.status, 'mismatch');
+  assert.ok(server.labels.includes('Versões diferentes'));
+  assert.ok(server.labels.includes('Versão indisponível para comparação'));
+  assert.deepEqual(server.details.map((item) => item.tone), ['reference', 'mismatch', 'unknown']);
 });
 
 function response() { return { statusCode: 0, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } }; }
