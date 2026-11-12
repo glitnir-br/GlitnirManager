@@ -12,7 +12,7 @@ export const PAGE_PERMISSIONS = [
   { key: 'rcon_testes', label: 'Rcon de Testes' },
   { key: 'jogadores', label: 'Jogadores' },
   { key: 'player_item_deliveries', label: 'Jogadores · Enviar itens e consultar histórico' },
-  { key: 'territorios', label: 'Territórios e Wards' },
+  { key: 'territorios', label: 'Territórios' },
   { key: 'personagem', label: 'Personagem' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'administracao', label: 'Administração' },

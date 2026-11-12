@@ -9,8 +9,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import WardsTab from '@/components/territories/WardsTab';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 const SIMPLE_FLAGS = [
@@ -101,6 +99,5 @@ function TerritoriesTab() {
 }
 
 export default function Territorios() {
-  const [tab, setTab] = useState('territorios');
-  return <div className="min-w-0 space-y-6"><div><h1 className="flex items-start gap-2 sm:items-center text-2xl font-bold md:text-3xl"><MapPinned className="h-7 w-7 shrink-0 text-primary" />Territórios e Wards</h1><p className="mt-1 text-sm text-muted-foreground">Gerencie zonas do Marketplace e autorizações do ArcaneWard.</p></div><Tabs value={tab} onValueChange={setTab}><TabsList className="grid w-full grid-cols-2 sm:w-auto"><TabsTrigger value="territorios">Territórios</TabsTrigger><TabsTrigger value="wards">Wards</TabsTrigger></TabsList></Tabs>{tab === 'territorios' ? <TerritoriesTab /> : <WardsTab />}</div>;
+  return <div className="min-w-0 space-y-6"><div><h1 className="flex items-start gap-2 sm:items-center text-2xl font-bold md:text-3xl"><MapPinned className="h-7 w-7 shrink-0 text-primary" />Territórios</h1><p className="mt-1 text-sm text-muted-foreground">Gerencie zonas do Marketplace.</p></div><TerritoriesTab /></div>;
 }

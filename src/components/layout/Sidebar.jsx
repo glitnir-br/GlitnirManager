@@ -12,7 +12,7 @@ const allNavItems = [
   { label: 'Rcon',            path: '/rcon',             icon: Terminal,        roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Rcon de Testes',  path: '/rcon-testes',      permission: 'rcon_testes', icon: Terminal,     roles: ['adm_principal', 'administrador'] },
   { label: 'Jogadores',       path: '/jogadores',        icon: Users,           roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
-  { label: 'Territórios e Wards', path: '/territorios', icon: MapPinned,       roles: ['adm_principal', 'administrador'] },
+  { label: 'Territórios', path: '/territorios', icon: MapPinned,       roles: ['adm_principal', 'administrador'] },
   { label: 'Personagem',      path: '/personagem',       icon: UserCircle,      roles: ['adm_principal', 'administrador', 'financeiro', 'visitante'] },
   { label: 'Financeiro',      path: '/financeiro',       icon: DollarSign,      roles: ['adm_principal', 'administrador', 'financeiro'] },
   { label: 'Administração',   path: '/administracao',    icon: Shield,          roles: ['adm_principal', 'administrador'] },
