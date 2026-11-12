@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { waitUntil } from '@vercel/functions';
+import { initialModTasks, runModSync } from '../src/lib/modSyncWorker.js';
+
+export const maxDuration = 300;
 
 const ROOTS = { plugins: '/BepInEx/plugins', whitelist: '/BepInEx/config/AzuAntiCheat/Whitelist', greylist: '/BepInEx/config/AzuAntiCheat/Greylist' };
 const SERVERS = new Set(['server_1', 'server_2']);
@@ -22,7 +26,7 @@ async function authenticate(req) {
   if (permissionError) throw permissionError;
   const allowed = profile.role === 'adm_principal' || (permissions?.length ? permissions.some((item) => item.page_key === 'mods' && item.allowed) : profile.role === 'administrador');
   if (!allowed) throw Object.assign(new Error('Seu cargo não possui permissão para consultar mods.'), { status: 403 });
-  return { admin, email: data.user.email };
+  return { admin, email: data.user.email, role: profile.role };
 }
 
 async function ptero(server, path, text = false) {
@@ -33,7 +37,7 @@ async function ptero(server, path, text = false) {
   const response = await fetch(`${base}/api/client/servers/${encodeURIComponent(serverId)}${path}`, { headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
   if (!response.ok) {
     const retry = Number(response.headers.get('retry-after'));
-    throw Object.assign(new Error(`Pterodactyl respondeu ${response.status}.`), { status: response.status === 429 ? 429 : 502, retryAfter: Number.isFinite(retry) && retry > 0 ? Math.min(retry, 30) : 3 });
+    throw Object.assign(new Error(`Pterodactyl respondeu ${response.status}.`), { status: [404, 429].includes(response.status) ? response.status : 502, retryAfter: Number.isFinite(retry) && retry > 0 ? Math.min(retry, 30) : 3 });
   }
   return text ? response.text() : response.json();
 }
@@ -41,12 +45,47 @@ async function ptero(server, path, text = false) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
   try {
-    const { admin, email } = await authenticate(req);
+    const { admin, email, role } = await authenticate(req);
     const { action, server, category, folder } = req.body || {};
     if (action === 'get') {
       const { data, error } = await admin.from('mod_comparison_snapshot').select('entries,synced_at,synced_by').eq('id', true).maybeSingle();
       if (error) throw error;
-      return send(res, 200, { snapshot: Array.isArray(data) ? data[0] : data });
+      const { data: job, error: jobError } = await admin.from('mod_comparison_job').select('token,owner,status,stage,done,total,message,updated_at').eq('id', true).maybeSingle();
+      if (jobError) throw jobError;
+      if (job?.status === 'running' && Date.now() - new Date(job.updated_at).getTime() > 180000) {
+        const { data: paused, error: pauseError } = await admin.from('mod_comparison_job').update({ status: 'paused', stage: 'Pausada', message: 'A execução foi interrompida. Clique em Continuar para retomar.', updated_at: new Date().toISOString() }).eq('id', true).eq('token', job.token).eq('status', 'running').eq('updated_at', job.updated_at).select('owner,status,stage,done,total,message,updated_at').maybeSingle();
+        if (pauseError) throw pauseError;
+        if (paused) return send(res, 200, { snapshot: data, job: paused });
+      }
+      if (job) delete job.token;
+      return send(res, 200, { snapshot: Array.isArray(data) ? data[0] : data, job });
+    }
+    if (action === 'background-start' || action === 'background-resume') {
+      let previous = null;
+      if (action === 'background-resume') {
+        const { data, error } = await admin.from('mod_comparison_job').select('*').eq('id', true).maybeSingle();
+        if (error) throw error;
+        previous = data;
+        if (!previous || !['paused', 'failed'].includes(previous.status)) return send(res, 409, { error: 'Não há sincronização pausada para continuar.' });
+        if (previous.owner !== email && role !== 'adm_principal') return send(res, 403, { error: 'Somente quem iniciou ou o ADM Principal pode continuar.' });
+      }
+      const { data: token, error: acquireError } = await admin.rpc('mod_comparison_acquire', { p_owner: email });
+      if (acquireError) throw acquireError;
+      if (!token) return send(res, 409, { error: 'Já existe uma sincronização em andamento. Aguarde sua conclusão.' });
+      const queue = previous?.queue || initialModTasks(); const entries = previous?.entries || []; const done = previous?.done || 0;
+      const { error: jobError } = await admin.from('mod_comparison_job').upsert({ id: true, token, owner: email, status: 'running', stage: 'Iniciando', done, total: done + queue.length, queue, entries, message: null, updated_at: new Date().toISOString() });
+      if (jobError) { await admin.rpc('mod_comparison_release', { p_token: token, p_owner: email }); throw jobError; }
+      waitUntil(runModSync({ admin, token, owner: email, queue, entries, done, ptero }));
+      return send(res, 202, { success: true });
+    }
+    if (action === 'background-cancel') {
+      const { data: job, error } = await admin.from('mod_comparison_job').select('token,owner,status').eq('id', true).maybeSingle();
+      if (error) throw error;
+      if (!job || !['running', 'paused', 'failed'].includes(job.status)) return send(res, 409, { error: 'Nenhuma sincronização em andamento.' });
+      if (job.owner !== email && role !== 'adm_principal') return send(res, 403, { error: 'Somente quem iniciou ou o ADM Principal pode cancelar.' });
+      const { error: cancelError } = await admin.from('mod_comparison_job').update({ status: 'cancelled', stage: 'Cancelada', message: 'Sincronização cancelada.', updated_at: new Date().toISOString() }).eq('id', true).eq('token', job.token).in('status', ['running', 'paused', 'failed']);
+      if (cancelError) throw cancelError;
+      return send(res, 200, { success: true });
     }
     if (action === 'start') {
       const { data, error } = await admin.rpc('mod_comparison_acquire', { p_owner: email });

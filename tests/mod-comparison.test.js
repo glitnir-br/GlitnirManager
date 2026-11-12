@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compareMods } from '../src/lib/modComparison.js';
 import handler from '../api/mod-comparison.js';
+import { initialModTasks, processModTask, runModSync } from '../src/lib/modSyncWorker.js';
 
 const entry = (server, category, folder, version) => ({ server, category, folder, name: folder, version, status: 'ok' });
 test('compara versões dentro de cada categoria sem confundir os servidores', () => {
@@ -94,10 +95,44 @@ test('abrir a tela carrega somente o resultado salvo, sem consultar o Pterodacty
     if (url.includes('/rest/v1/user_profiles')) return Response.json([{ role: 'administrador', status: 'ativo' }]);
     if (url.includes('/rest/v1/role_permissions')) return Response.json([{ page_key: 'mods', allowed: true }]);
     if (url.includes('/rest/v1/mod_comparison_snapshot')) return Response.json([{ entries: [], synced_at: '2026-01-01T00:00:00Z', synced_by: 'admin@example.test' }]);
+    if (url.includes('/rest/v1/mod_comparison_job')) return Response.json([]);
     throw new Error(`Consulta inesperada: ${url}`);
   };
   const res = response();
   await handler(req({ action: 'get' }), res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.snapshot.entries, []);
+});
+test('consulta o manifest diretamente sem listar toda a árvore do mod', async () => {
+  const calls = [];
+  const result = await processModTask({ type: 'folder', server: 'server_1', category: 'plugins', folder: 'Autor-Mod' }, async (server, path) => {
+    calls.push(path);
+    return JSON.stringify({ name: 'Mod', version_number: '2.4' });
+  });
+  assert.equal(calls.length, 1);
+  assert.match(decodeURIComponent(calls[0]), /Autor-Mod\/manifest\.json/);
+  assert.equal(result.entries[0].version, '2.4');
+});
+test('a fila executa e salva progresso sem depender de uma aba aberta', async () => {
+  const snapshots = []; let finished = false;
+  const admin = {
+    from() { return { update(values) { snapshots.push(structuredClone(values)); return this; }, eq() { return this; }, select() { return this; }, async maybeSingle() { return { data: { status: 'running' }, error: null }; } }; },
+    async rpc(name, args) { if (name === 'mod_comparison_touch') return { data: true }; if (name === 'mod_comparison_finish_job') { finished = true; assert.equal(args.p_entries.length, 1); } return { data: null, error: null }; },
+  };
+  const ptero = async (server, path) => path.includes('/files/list') ? { data: [{ attributes: { name: 'Mod', is_file: false } }] } : JSON.stringify({ name: 'Mod', version_number: '1' });
+  await runModSync({ admin, token: 'token', owner: 'admin', queue: [initialModTasks()[0]], entries: [], ptero, pause: async () => {} });
+  assert.ok(finished);
+  assert.ok(snapshots.some((snapshot) => snapshot.done === 2));
+});
+test('limite de tempo pausa a fila sem descartar as tarefas pendentes', async () => {
+  const saved = []; let published = false;
+  const admin = {
+    from() { return { update(values) { saved.push(structuredClone(values)); return this; }, eq() { return this; }, select() { return this; }, async maybeSingle() { return { data: { status: 'running' }, error: null }; } }; },
+    async rpc(name) { if (name === 'mod_comparison_touch') return { data: true }; if (name === 'mod_comparison_finish_job') published = true; return { data: null, error: null }; },
+  };
+  await runModSync({ admin, token: 'token', owner: 'admin', queue: [initialModTasks()[0]], entries: [], ptero: async () => { throw new Error('não deveria consultar'); }, now: () => 0, budgetMs: 1000, pause: async () => {} });
+  const paused = saved.find((state) => state.status === 'paused');
+  assert.equal(paused.queue.length, 1);
+  assert.equal(paused.done, 0);
+  assert.equal(published, false);
 });

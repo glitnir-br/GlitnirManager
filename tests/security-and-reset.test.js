@@ -13,7 +13,7 @@ const migrations = [
   '20261014_000020_mod_folder_identity.sql', '20261015_000004_roles_and_permissions.sql',
   '20261018_000021_vip_packages_and_deliveries.sql', '20261018_000024_player_item_deliveries.sql',
   '20261112_000028_safe_data_reset.sql', '20261112_000029_security_hardening.sql',
-  '20261112_000030_safe_sync_deliveries.sql', '20261112_000031_mod_comparison.sql',
+  '20261112_000030_safe_sync_deliveries.sql', '20261112_000031_mod_comparison.sql', '20261112_000032_mod_background_job.sql',
 ];
 
 async function database() {
@@ -114,4 +114,15 @@ test('sincronização de mods impede concorrência e só publica resultado compl
   assert.ok((await db.query("select public.mod_comparison_acquire('outro') as token")).rows[0].token);
   await login(db, 'admin@example.test');
   await assert.rejects(db.query("select public.mod_comparison_acquire('admin')"), { code: '42501' });
+});
+
+test('cancelamento impede publicar snapshot de uma sincronização em segundo plano', async (t) => {
+  const db = await database(); t.after(() => db.close());
+  const token = (await db.query("select public.mod_comparison_acquire('admin') as token")).rows[0].token;
+  await db.query("insert into public.mod_comparison_job(token,owner,status,stage) values ($1,'admin','cancelled','Cancelada')", [token]);
+  await assert.rejects(db.query('select public.mod_comparison_finish_job($1,$2,$3)', [token, 'admin', '[]']));
+  assert.equal((await db.query('select count(*)::int as n from public.mod_comparison_snapshot')).rows[0].n, 0);
+  await db.exec("update public.mod_comparison_job set status='running'");
+  await db.query('select public.mod_comparison_finish_job($1,$2,$3)', [token, 'admin', '[]']);
+  assert.equal((await db.query('select status from public.mod_comparison_job')).rows[0].status, 'completed');
 });

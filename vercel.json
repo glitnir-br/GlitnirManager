@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/mod-comparison.js": { "maxDuration": 300 }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
